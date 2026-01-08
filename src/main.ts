@@ -1,6 +1,6 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, ItemView, WorkspaceLeaf} from 'obsidian';
 import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
-import { createTicker } from "./ticker";
+import { initTicker } from "./ticker";
 
 const VIEW_TYPE_MY_PANEL = "my-plugin-panel";
 
@@ -25,8 +25,15 @@ class MyPanelView extends ItemView {
     const container = this.containerEl; // main content area
     container.empty();
     container.createEl("h2", { text: "Title" });
-	createTicker(container, ["Word 1", "Word 2", "Word 3"]);
-    // add more DOM/UI here
+    const scroller = container.createDiv({ cls: "scroller" });
+    scroller.setAttribute("data-speed", "fast");
+
+    const list = scroller.createEl("ul", { cls: ["tag-list", "scroller__inner"] });
+    const tags = ["Word 1", "Word 2", "Word 3", "Word 4", "Word 5", "Word 6", "Word 7"];
+    tags.forEach((tag) => {
+      list.createEl("li", { text: tag });
+    });
+    initTicker(container);
   }
 
   async onClose() {
