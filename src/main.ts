@@ -25,7 +25,7 @@ class MyPanelView extends ItemView {
     const container = this.containerEl; // main content area
     container.empty();
     const scroller = container.createDiv({ cls: "scroller" });
-    scroller.setAttribute("data-speed", "fast");
+    scroller.setAttribute("data-speed", "slow");
 
     const list = scroller.createEl("ul", { cls: ["tag-list", "scroller__inner"] });
     const tags = ["Word 1", "Word 2", "Word 3", "Word 4", "Word 5", "Word 6", "Word 7"];
