@@ -6,10 +6,19 @@ const VIEW_TYPE_MY_PANEL = "my-plugin-panel";
 
 class MyPanelView extends ItemView {
   private speed: TickerSpeed;
+  private stockChangeColor: string;
+  private stockPriceColor: string;
 
-  constructor(leaf: WorkspaceLeaf, speed: TickerSpeed) {
+  constructor(
+    leaf: WorkspaceLeaf,
+    speed: TickerSpeed,
+    stockPriceColor: string,
+    stockChangeColor: string
+  ) {
     super(leaf);
     this.speed = speed;
+    this.stockPriceColor = stockPriceColor;
+    this.stockChangeColor = stockChangeColor;
   }
 
   setSpeed(speed: TickerSpeed) {
@@ -18,6 +27,26 @@ class MyPanelView extends ItemView {
     scrollers.forEach((scroller) => {
       scroller.setAttribute("data-speed", speed);
     });
+  }
+
+  setStockColors(stockPriceColor: string, stockChangeColor: string) {
+    this.stockPriceColor = stockPriceColor;
+    this.stockChangeColor = stockChangeColor;
+    this.applyColorVars();
+  }
+
+  private applyColorVars() {
+    this.setColorVar("--stock-price-color", this.stockPriceColor);
+    this.setColorVar("--stock-change-color", this.stockChangeColor);
+  }
+
+  private setColorVar(name: string, value: string) {
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      this.containerEl.style.setProperty(name, trimmed);
+    } else {
+      this.containerEl.style.removeProperty(name);
+    }
   }
 
   getViewType() {
@@ -63,6 +92,7 @@ class MyPanelView extends ItemView {
       item.createSpan({ text: price, cls: "stock-price" });
       item.createSpan({ text: change, cls: "stock-change" });
     });
+    this.applyColorVars();
     initTicker(container);
   }
 
@@ -88,7 +118,16 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		this.registerView(VIEW_TYPE_MY_PANEL, (leaf) => new MyPanelView(leaf, this.settings.tickerSpeed));
+		this.registerView(
+			VIEW_TYPE_MY_PANEL,
+			(leaf) =>
+				new MyPanelView(
+					leaf,
+					this.settings.tickerSpeed,
+					this.settings.stockPriceColor,
+					this.settings.stockChangeColor
+				)
+		);
 
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
@@ -119,7 +158,12 @@ export default class MyPlugin extends Plugin {
 					// If checking is true, we're simply "checking" if the command can be run.
 					// If checking is false, then we want to actually perform the operation.
 					if (!checking) {
-						new MyPanelView(this.app.workspace.getLeaf(true), this.settings.tickerSpeed);
+						new MyPanelView(
+							this.app.workspace.getLeaf(true),
+							this.settings.tickerSpeed,
+							this.settings.stockPriceColor,
+							this.settings.stockChangeColor
+						);
 					}
 
 					// This command will only show up in Command Palette when the check function returns true
@@ -146,6 +190,19 @@ export default class MyPlugin extends Plugin {
 			const view = leaf.view;
 			if (view instanceof MyPanelView) {
 				view.setSpeed(this.settings.tickerSpeed);
+			}
+		});
+	}
+
+	updateTickerColors() {
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MY_PANEL);
+		leaves.forEach((leaf) => {
+			const view = leaf.view;
+			if (view instanceof MyPanelView) {
+				view.setStockColors(
+					this.settings.stockPriceColor,
+					this.settings.stockChangeColor
+				);
 			}
 		});
 	}

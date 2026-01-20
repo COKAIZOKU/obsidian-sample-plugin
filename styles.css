@@ -71,11 +71,11 @@
 }
 
 .stock-change {
-  color: var(--text-accent);
+  color: var(--stock-change-color, var(--text-accent));
   font-variant-numeric: tabular-nums;
 }
 
 .stock-price {
-  color: var(--text-faint);
+  color: var(--stock-price-color, var(--text-faint));
   font-variant-numeric: tabular-nums;
 }
