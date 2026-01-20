@@ -1,12 +1,23 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, ItemView, WorkspaceLeaf} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab, TickerSpeed} from "./settings";
 import { initTicker } from "./ticker";
 
 const VIEW_TYPE_MY_PANEL = "my-plugin-panel";
 
 class MyPanelView extends ItemView {
-  constructor(leaf: WorkspaceLeaf) {
+  private speed: TickerSpeed;
+
+  constructor(leaf: WorkspaceLeaf, speed: TickerSpeed) {
     super(leaf);
+    this.speed = speed;
+  }
+
+  setSpeed(speed: TickerSpeed) {
+    this.speed = speed;
+    const scrollers = this.containerEl.querySelectorAll<HTMLElement>(".scroller");
+    scrollers.forEach((scroller) => {
+      scroller.setAttribute("data-speed", speed);
+    });
   }
 
   getViewType() {
@@ -25,7 +36,7 @@ class MyPanelView extends ItemView {
     const container = this.containerEl; // main content area
     container.empty();
     const scroller = container.createDiv({ cls: "scroller" });
-    scroller.setAttribute("data-speed", "slow");
+    scroller.setAttribute("data-speed", this.speed);
 
     const list = scroller.createEl("ul", { cls: ["tag-list", "scroller__inner"] });
     const headlines = ["Fourth Slice of Pizza Consumed Without Facial Expression", "Man's Mouth All Dry From Complaining", "Play Within A Play Also Boring", "Amazing Psychic Bends Truth With Minds"];
@@ -34,7 +45,7 @@ class MyPanelView extends ItemView {
     });
 
     const stockScroller = container.createDiv({ cls: "scroller" });
-    stockScroller.setAttribute("data-speed", "slow");
+    stockScroller.setAttribute("data-speed", this.speed);
 
     const stockList = stockScroller.createEl("ul", { cls: ["tag-list", "scroller__inner", "stock-list"] });
     const stocks: Array<[string, string, string]> = [
@@ -77,9 +88,7 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-		this.registerView(VIEW_TYPE_MY_PANEL, (leaf) => new MyPanelView(leaf));
+		this.registerView(VIEW_TYPE_MY_PANEL, (leaf) => new MyPanelView(leaf, this.settings.tickerSpeed));
 
 		// This adds a simple command that can be triggered anywhere
 		this.addCommand({
@@ -110,7 +119,7 @@ export default class MyPlugin extends Plugin {
 					// If checking is true, we're simply "checking" if the command can be run.
 					// If checking is false, then we want to actually perform the operation.
 					if (!checking) {
-						new MyPanelView(this.app.workspace.getLeaf(true));
+						new MyPanelView(this.app.workspace.getLeaf(true), this.settings.tickerSpeed);
 					}
 
 					// This command will only show up in Command Palette when the check function returns true
@@ -123,18 +132,22 @@ export default class MyPlugin extends Plugin {
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
 
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
-
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 
 	}
 
 	onunload() {
+	}
+
+	updateTickerSpeed() {
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MY_PANEL);
+		leaves.forEach((leaf) => {
+			const view = leaf.view;
+			if (view instanceof MyPanelView) {
+				view.setSpeed(this.settings.tickerSpeed);
+			}
+		});
 	}
 
 	async loadSettings() {

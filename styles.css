@@ -10,8 +10,7 @@
 }
 
 .scroller + .scroller {
-  margin-top: auto;
-  margin-bottom: auto;
+  margin: auto;
   border-top: 1px solid var(--color-base-30);
 }
 
@@ -33,6 +32,10 @@
 
 .scroller[data-speed="fast"] {
   --_animation-duration: 20s;
+}
+
+.scroller[data-speed="medium"] {
+  --_animation-duration: 40s;
 }
 
 .scroller[data-speed="slow"] {
