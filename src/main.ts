@@ -1,21 +1,43 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, ItemView, WorkspaceLeaf} from 'obsidian';
 import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab, TickerSpeed} from "./settings";
 import { initTicker } from "./ticker";
+import { fetchCurrentsHeadlines } from "./newsapi";
 
 const VIEW_TYPE_MY_PANEL = "my-plugin-panel";
+const HEADLINE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // the cache lifetime is 24 hours
+const FALLBACK_HEADLINES = [
+  "Sample Headline 1: Please Add Your API Key",
+  "Sample Headline 2: To Fetch Live News",
+  "Sample Headline 3: And Actually Get News",
+  "Sample Headline 4: These Are Just Placeholder!",
+];
+
+interface HeadlinesCache {
+  cacheKey: string;
+  fetchedAt: number;
+  headlines: string[];
+}
+
+interface PluginData {
+  settings?: Partial<MyPluginSettings>;
+  headlinesCache?: HeadlinesCache | null;
+}
 
 class MyPanelView extends ItemView {
+  private plugin: MyPlugin;
   private speed: TickerSpeed;
   private stockChangeColor: string;
   private stockPriceColor: string;
 
   constructor(
     leaf: WorkspaceLeaf,
+    plugin: MyPlugin,
     speed: TickerSpeed,
     stockPriceColor: string,
     stockChangeColor: string
   ) {
     super(leaf);
+    this.plugin = plugin;
     this.speed = speed;
     this.stockPriceColor = stockPriceColor;
     this.stockChangeColor = stockChangeColor;
@@ -33,6 +55,14 @@ class MyPanelView extends ItemView {
     this.stockPriceColor = stockPriceColor;
     this.stockChangeColor = stockChangeColor;
     this.applyColorVars();
+  }
+
+  private async loadHeadlines(list: HTMLUListElement) {
+    const headlines = await this.plugin.getHeadlines();
+    list.empty();
+    headlines.forEach((headline) => {
+      list.createEl("li", { text: headline });
+    });
   }
 
   private applyColorVars() {
@@ -61,17 +91,14 @@ class MyPanelView extends ItemView {
     return "News";
   }
 
-  async onOpen() {
+  private async render() {
     const container = this.containerEl; // main content area
     container.empty();
     const scroller = container.createDiv({ cls: "scroller" });
     scroller.setAttribute("data-speed", this.speed);
 
     const list = scroller.createEl("ul", { cls: ["tag-list", "scroller__inner"] });
-    const headlines = ["Fourth Slice of Pizza Consumed Without Facial Expression", "Man's Mouth All Dry From Complaining", "Play Within A Play Also Boring", "Amazing Psychic Bends Truth With Minds"];
-    headlines.forEach((headline) => {
-      list.createEl("li", { text: headline });
-    });
+    await this.loadHeadlines(list);
 
     const stockScroller = container.createDiv({ cls: "scroller" });
     stockScroller.setAttribute("data-speed", this.speed);
@@ -96,6 +123,14 @@ class MyPanelView extends ItemView {
     initTicker(container);
   }
 
+  async onOpen() {
+    await this.render();
+  }
+
+  async refresh() {
+    await this.render();
+  }
+
   async onClose() {
     // clean up if needed
   }
@@ -105,6 +140,7 @@ class MyPanelView extends ItemView {
 
 export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
+	private headlinesCache: HeadlinesCache | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -123,6 +159,7 @@ export default class MyPlugin extends Plugin {
 			(leaf) =>
 				new MyPanelView(
 					leaf,
+					this,
 					this.settings.tickerSpeed,
 					this.settings.stockPriceColor,
 					this.settings.stockChangeColor
@@ -160,6 +197,7 @@ export default class MyPlugin extends Plugin {
 					if (!checking) {
 						new MyPanelView(
 							this.app.workspace.getLeaf(true),
+							this,
 							this.settings.tickerSpeed,
 							this.settings.stockPriceColor,
 							this.settings.stockChangeColor
@@ -182,6 +220,108 @@ export default class MyPlugin extends Plugin {
 	}
 
 	onunload() {
+	}
+
+	private buildHeadlinesCacheKey(resolvedLimit: number) {
+		return JSON.stringify({
+			category: this.settings.currentsCategory.trim(),
+			region: this.settings.currentsRegion.trim(),
+			language: this.settings.currentsLanguage.trim(),
+			limit: resolvedLimit,
+		});
+	}
+
+	private async fetchHeadlinesFromApi(resolvedLimit: number): Promise<string[]> {
+		const apiKey = this.settings.currentsApiKey.trim();
+		if (!apiKey) {
+			return [];
+		}
+
+		const category = this.settings.currentsCategory.trim();
+		const region = this.settings.currentsRegion.trim();
+		const language = this.settings.currentsLanguage.trim();
+
+		const results = await fetchCurrentsHeadlines({
+			apiKey,
+			endpoint: "latest-news",
+			limit: resolvedLimit,
+			category: category.length > 0 ? category : undefined,
+			country: region.length > 0 ? region : undefined,
+			language: language.length > 0 ? language : undefined,
+		});
+
+		let titles = results
+			.map((item) => item.title)
+			.filter((title): title is string => Boolean(title && title.trim().length > 0));
+
+		return titles;
+	}
+
+	private async savePluginData() {
+		await this.saveData({
+			settings: this.settings,
+			headlinesCache: this.headlinesCache,
+		});
+	}
+
+	async getHeadlines(options?: { forceRefresh?: boolean; showNotice?: boolean }) {
+		const resolvedLimit = Number.isFinite(this.settings.currentsLimit)
+			? Math.min(50, Math.max(1, Math.floor(this.settings.currentsLimit)))
+			: 3;
+		const cacheKey = this.buildHeadlinesCacheKey(resolvedLimit);
+		const cache = this.headlinesCache;
+		const cacheMatches = cache?.cacheKey === cacheKey;
+		const cacheAge = cache ? Date.now() - cache.fetchedAt : Number.POSITIVE_INFINITY;
+		const cacheFresh = cacheMatches && cacheAge < HEADLINE_CACHE_TTL_MS;
+		const forceRefresh = options?.forceRefresh ?? false;
+		const showNotice = options?.showNotice ?? true;
+		if (!forceRefresh && cacheFresh && cache?.headlines.length) {
+			return cache.headlines.slice(0, resolvedLimit);
+		}
+
+		if (!this.settings.currentsApiKey.trim()) {
+			return FALLBACK_HEADLINES.slice(0, resolvedLimit);
+		}
+
+		try {
+			const titles = await this.fetchHeadlinesFromApi(resolvedLimit);
+			if (titles.length > 0) {
+				this.headlinesCache = {
+					cacheKey,
+					fetchedAt: Date.now(),
+					headlines: titles,
+				};
+				await this.savePluginData();
+				return titles.slice(0, resolvedLimit);
+			}
+		} catch (error) {
+			console.error("Failed to fetch Currents headlines", error);
+			if (showNotice) {
+				new Notice("Failed to fetch Currents headlines. Showing cached items.");
+			}
+		}
+
+		if (cacheMatches && cache?.headlines.length) {
+			return cache.headlines.slice(0, resolvedLimit);
+		}
+
+		if (showNotice) {
+			new Notice("No cached headlines available. Showing sample items.");
+		}
+		return FALLBACK_HEADLINES.slice(0, resolvedLimit);
+	}
+
+	async refreshHeadlines() {
+		await this.getHeadlines({ forceRefresh: true, showNotice: true });
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MY_PANEL);
+		await Promise.all(
+			leaves.map(async (leaf) => {
+				const view = leaf.view;
+				if (view instanceof MyPanelView) {
+					await view.refresh();
+				}
+			})
+		);
 	}
 
 	updateTickerSpeed() {
@@ -208,10 +348,19 @@ export default class MyPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
+		const data = await this.loadData();
+		if (data && typeof data === "object" && "settings" in data) {
+			const typedData = data as PluginData;
+			this.settings = Object.assign({}, DEFAULT_SETTINGS, typedData.settings ?? {});
+			this.headlinesCache = typedData.headlinesCache ?? null;
+			return;
+		}
+
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data as Partial<MyPluginSettings>);
+		this.headlinesCache = null;
 	}
 
 	async saveSettings() {
-		await this.saveData(this.settings);
+		await this.savePluginData();
 	}
 }
