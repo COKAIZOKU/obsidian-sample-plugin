@@ -8,6 +8,10 @@ export interface MyPluginSettings {
 	tickerSpeed: TickerSpeed;
 	stockChangeColor: string;
 	stockPriceColor: string;
+	alpacaApiKey: string;
+	alpacaApiSecret: string;
+	alpacaDataBaseUrl: string;
+	alpacaSymbols: string;
 	currentsApiKey: string;
 	currentsCategory: string;
 	currentsLimit: number;
@@ -21,6 +25,10 @@ export const DEFAULT_SETTINGS: MyPluginSettings = {
 	tickerSpeed: "slow",
 	stockChangeColor: "",
 	stockPriceColor: "",
+	alpacaApiKey: "",
+	alpacaApiSecret: "",
+	alpacaDataBaseUrl: "https://data.alpaca.markets/v2",
+	alpacaSymbols: "AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META",
 	currentsApiKey: "",
 	currentsCategory: "",
 	currentsLimit: 5,
@@ -176,12 +184,12 @@ export class SampleSettingTab extends PluginSettingTab {
 		});
 
 		const descApi = createFragment();
-		descApi.appendText('Used to fetch live headlines. Get the free API key ');
+		descApi.appendText('Used to fetch live headlines, without it you will only see placeholder headlines. Get the free Currents API key making an account ');
 		descApi.appendChild(createEl('a', {text: 'here', href: 'https://currentsapi.services/'}));
 		descApi.appendText('.');
 		
 		new Setting(containerEl)
-			.setName('API Key')
+			.setName('Currents API key')
 			.setDesc(descApi)
 			.addText(text => text
 				.setPlaceholder('Enter your Currents API key')
@@ -295,7 +303,63 @@ export class SampleSettingTab extends PluginSettingTab {
 					});
 			});
 
-		containerEl.createEl('h2', {text: 'Stock Settings'});
+		containerEl.createEl('div', {text: 'Stock Settings', cls: 'setting-item-name setting-section-header'});
+		containerEl.createEl('div', {
+			text: 'These settings are for the stock ticker. The stocks are fetched from the Alpaca Market Data API.',
+			cls: 'setting-item-description setting-section-description'
+		});
+
+		const descAlpacaKey = createFragment();
+		descAlpacaKey.appendText('Used to fetch stock data. without it you will only see placeholder stock data. Get the free Alpaca API key making an account ');
+		descAlpacaKey.appendChild(createEl('a', {text: 'here', href: 'https://app.alpaca.markets/account/login?ref=alpaca.markets'}));
+		descAlpacaKey.appendText('.');
+
+		new Setting(containerEl)
+			.setName('Alpaca API key')
+			.setDesc(descAlpacaKey)
+			.addText(text => text
+				.setPlaceholder('Enter your Alpaca API key')
+				.setValue(this.plugin.settings.alpacaApiKey)
+				.onChange(async (value) => {
+					this.plugin.settings.alpacaApiKey = value.trim();
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Alpaca API secret')
+			.setDesc('Your Alpaca API secret.')
+			.addText(text => {
+				text.inputEl.type = "password";
+				text
+					.setPlaceholder('Enter your Alpaca API secret')
+					.setValue(this.plugin.settings.alpacaApiSecret)
+					.onChange(async (value) => {
+						this.plugin.settings.alpacaApiSecret = value.trim();
+						await this.plugin.saveSettings();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName('Data base URL')
+			.setDesc('Defaults to https://data.alpaca.markets/v2.')
+			.addText(text => text
+				.setPlaceholder('https://data.alpaca.markets/v2')
+				.setValue(this.plugin.settings.alpacaDataBaseUrl)
+				.onChange(async (value) => {
+					this.plugin.settings.alpacaDataBaseUrl = value.trim();
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Stock symbols')
+			.setDesc('Comma or space-separated tickers to show in the stock ticker.')
+			.addText(text => text
+				.setPlaceholder('e.g. AAPL, MSFT, TSLA')
+				.setValue(this.plugin.settings.alpacaSymbols)
+				.onChange(async (value) => {
+					this.plugin.settings.alpacaSymbols = value;
+					await this.plugin.saveSettings();
+				}));
 
 		new Setting(containerEl)
 			.setName('Stock change color')
@@ -320,5 +384,28 @@ export class SampleSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					this.plugin.updateTickerColors();
 				}));
+		
+		new Setting(containerEl)
+			.setName('Refresh stock data')
+			.setDesc('Fetch the latest stock quotes.')
+			.addButton(button => {
+				button
+					.setButtonText('Refresh')
+					.setCta()
+					.onClick(async () => {
+						button.setDisabled(true);
+						button.setButtonText("Refreshing...");
+						try {
+							await this.plugin.refreshStocks();
+							new Notice("Stock data refreshed.");
+						} catch (error) {
+							console.error("Failed to refresh stock data", error);
+							new Notice("Failed to refresh stock data. Check your Alpaca credentials and connection.");
+						} finally {
+							button.setDisabled(false);
+							button.setButtonText("Refresh");
+						}
+					});
+			});
 	}
 }

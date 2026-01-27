@@ -51,6 +51,15 @@ Quick starting guide for new plugin devs:
 - `npm i` or `yarn` to install dependencies.
 - `npm run dev` to start compilation in watch mode.
 
+## External services
+
+This plugin can fetch live data from third-party services when you opt in:
+
+- Currents News API for headlines (requires your Currents API key).
+- Alpaca Market Data API for stock quotes (requires your Alpaca API key + secret).
+
+The plugin only sends the API credentials you provide and the symbols or filters you configure in the settings tab.
+
 ## Manually installing the plugin
 
 - Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.

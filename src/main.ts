@@ -2,6 +2,7 @@ import {App, Editor, MarkdownView, Modal, Notice, Plugin, ItemView, WorkspaceLea
 import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab, TickerSpeed} from "./settings";
 import { initTicker } from "./ticker";
 import { fetchCurrentsHeadlines } from "./newsapi";
+import { fetchAlpacaStockQuotes, normalizeStockSymbols, StockQuote } from "./stocksapi";
 
 const VIEW_TYPE_MY_PANEL = "my-plugin-panel";
 interface HeadlineItem {
@@ -10,11 +11,18 @@ interface HeadlineItem {
 }
 
 const HEADLINE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // the cache lifetime is 24 hours
+const STOCK_CACHE_TTL_MS = 60 * 1000;
 const FALLBACK_HEADLINES: HeadlineItem[] = [
   { title: "Sample Headline 1: Please Add Your API Key" },
   { title: "Sample Headline 2: To Fetch Live News" },
   { title: "Sample Headline 3: And Actually Get News" },
   { title: "Sample Headline 4: These Are Just Placeholder!" },
+];
+const FALLBACK_STOCKS: Array<{ symbol: string; priceText: string; changeText: string }> = [
+  { symbol: "ADD", priceText: "$YOUR.API", changeText: "+KEY%" },
+  { symbol: "TO", priceText: "$SEE", changeText: "+STOCKS%" },
+  { symbol: "GET", priceText: "$LIVE", changeText: "+DATA%" },
+  { symbol: "STOCKS", priceText: "$HERE", changeText: "+NOW%" },
 ];
 
 const normalizeDomains = (input: string): string[] => {
@@ -64,6 +72,27 @@ const normalizeHeadlineItem = (item: unknown): HeadlineItem | null => {
 
   return null;
 };
+
+const formatPrice = (value?: number): string =>
+  value === undefined ? "N/A" : `$${value.toFixed(2)}`;
+
+const formatChange = (value?: number): string => {
+  if (value === undefined) {
+    return "N/A";
+  }
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
+};
+
+const toStockDisplayItem = (quote: StockQuote): {
+  symbol: string;
+  priceText: string;
+  changeText: string;
+} => ({
+  symbol: quote.symbol,
+  priceText: formatPrice(quote.price),
+  changeText: formatChange(quote.changePercent),
+});
 
 interface HeadlinesCache {
   cacheKey: string;
@@ -168,20 +197,16 @@ class MyPanelView extends ItemView {
     stockScroller.setAttribute("data-speed", this.speed);
 
     const stockList = stockScroller.createEl("ul", { cls: ["tag-list", "scroller__inner", "stock-list"] });
-    const stocks: Array<[string, string, string]> = [
-      ["AAPL", "$196.58" , "+1.24%"],
-      ["MSFT", "$330.72", "-0.72%"],
-      ["GOOGL", "$135.58", "+0.58%"],
-      ["AMZN", "$310.31", "+0.31%"],
-      ["TSLA", "$705.05", "-1.05%"],
-      ["NVDA", "$220.11", "+2.11%"],
-      ["META", "$250.00", "-0.44%"],
-    ];
-    stocks.forEach(([symbol, price, change]) => {
+    const quotes = await this.plugin.getStockQuotes();
+    const stocks = quotes.length > 0
+      ? quotes.map(toStockDisplayItem)
+      : FALLBACK_STOCKS;
+
+    stocks.forEach(({ symbol, priceText, changeText }) => {
       const item = stockList.createEl("li", { cls: "stock-item" });
       item.createSpan({ text: symbol });
-      item.createSpan({ text: price, cls: "stock-price" });
-      item.createSpan({ text: change, cls: "stock-change" });
+      item.createSpan({ text: priceText, cls: "stock-price" });
+      item.createSpan({ text: changeText, cls: "stock-change" });
     });
     this.applyColorVars();
     initTicker(container);
@@ -205,6 +230,7 @@ class MyPanelView extends ItemView {
 export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
 	private headlinesCache: HeadlinesCache | null = null;
+	private stockQuotesCache: { cacheKey: string; fetchedAt: number; quotes: StockQuote[] } | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -375,6 +401,26 @@ export default class MyPlugin extends Plugin {
 		});
 	}
 
+	private buildStockCacheKey(symbols: string[], baseUrl: string) {
+		return JSON.stringify({ symbols, baseUrl });
+	}
+
+	private async fetchStockQuotesFromApi(symbols: string[]): Promise<StockQuote[]> {
+		const apiKey = this.settings.alpacaApiKey.trim();
+		const apiSecret = this.settings.alpacaApiSecret.trim();
+		if (!apiKey || !apiSecret) {
+			return [];
+		}
+
+		const baseUrl = this.settings.alpacaDataBaseUrl.trim();
+		return fetchAlpacaStockQuotes({
+			apiKey,
+			apiSecret,
+			symbols,
+			baseUrl: baseUrl.length > 0 ? baseUrl : undefined,
+		});
+	}
+
   async getHeadlines(
     options?: { forceRefresh?: boolean; showNotice?: boolean }
   ): Promise<HeadlineItem[]> {
@@ -435,6 +481,65 @@ export default class MyPlugin extends Plugin {
 
 	async refreshHeadlines() {
 		await this.getHeadlines({ forceRefresh: true, showNotice: true });
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MY_PANEL);
+		await Promise.all(
+			leaves.map(async (leaf) => {
+				const view = leaf.view;
+				if (view instanceof MyPanelView) {
+					await view.refresh();
+				}
+			})
+		);
+	}
+
+	async getStockQuotes(options?: { forceRefresh?: boolean }): Promise<StockQuote[]> {
+		const symbols = normalizeStockSymbols(this.settings.alpacaSymbols);
+		if (symbols.length === 0) {
+			return [];
+		}
+
+		const apiKey = this.settings.alpacaApiKey.trim();
+		const apiSecret = this.settings.alpacaApiSecret.trim();
+		if (!apiKey || !apiSecret) {
+			return [];
+		}
+
+		const baseUrl = this.settings.alpacaDataBaseUrl.trim();
+		const cacheKey = this.buildStockCacheKey(symbols, baseUrl);
+		const cache = this.stockQuotesCache;
+		const cacheMatches = cache?.cacheKey === cacheKey;
+		const cacheAge = cache ? Date.now() - cache.fetchedAt : Number.POSITIVE_INFINITY;
+		const cacheFresh = cacheMatches && cacheAge < STOCK_CACHE_TTL_MS;
+		const forceRefresh = options?.forceRefresh ?? false;
+
+		if (!forceRefresh && cacheFresh && cache?.quotes.length) {
+			return cache.quotes.slice(0, symbols.length);
+		}
+
+		try {
+			const quotes = await this.fetchStockQuotesFromApi(symbols);
+			if (quotes.length > 0) {
+				this.stockQuotesCache = {
+					cacheKey,
+					fetchedAt: Date.now(),
+					quotes,
+				};
+				return quotes.slice(0, symbols.length);
+			}
+		} catch (error) {
+			console.error("Failed to fetch Alpaca stock quotes", error);
+		}
+
+		if (cacheMatches && cache?.quotes.length) {
+			return cache.quotes.slice(0, symbols.length);
+		}
+
+		return [];
+	}
+
+	async refreshStocks() {
+		this.stockQuotesCache = null;
+		await this.getStockQuotes({ forceRefresh: true });
 		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MY_PANEL);
 		await Promise.all(
 			leaves.map(async (leaf) => {
