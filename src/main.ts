@@ -1,8 +1,8 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, ItemView, WorkspaceLeaf} from 'obsidian';
 import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab, TickerSpeed} from "./settings";
 import { initTicker } from "./ticker";
-import { fetchCurrentsHeadlines } from "./newsapi";
-import { fetchAlpacaStockQuotes, normalizeStockSymbols, StockQuote } from "./stocksapi";
+import { fetchCurrentsHeadlines } from "./api/news";
+import { fetchAlpacaStockQuotes, normalizeStockSymbols, StockQuote } from "./api/stocks";
 
 const VIEW_TYPE_MY_PANEL = "my-plugin-panel";
 interface HeadlineItem {
@@ -10,7 +10,7 @@ interface HeadlineItem {
   url?: string;
 }
 
-const HEADLINE_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // the cache lifetime is 24 hours
+const HEADLINE_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // the cache lifetime is 24 hours
 const STOCK_CACHE_TTL_MS = 60 * 1000;
 const FALLBACK_HEADLINES: HeadlineItem[] = [
   { title: "Sample Headline 1: Please Add Your API Key" },

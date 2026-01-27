@@ -207,7 +207,7 @@ export class SampleSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('Categories')
 			.setDesc(descCategory)
-			.addText(text => text
+			.addTextArea(text => text
 				.setPlaceholder('e.g. science, food')
 				.setValue(this.plugin.settings.currentsCategory)
 				.onChange(async (value) => {
@@ -222,7 +222,7 @@ export class SampleSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('Domains')
 			.setDesc(descDomains)
-			.addText(text => text
+			.addTextArea(text => text
 				.setPlaceholder('e.g. bbc.com, nytimes.com')
 				.setValue(this.plugin.settings.currentsDomains)
 				.onChange(async (value) => {
@@ -338,10 +338,15 @@ export class SampleSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					});
 			});
+		
+		const descDataUrl = createFragment();
+		descDataUrl.appendText('Defaults to ');
+		descDataUrl.appendChild(createEl('a', {text: 'https://data.alpaca.markets/v2', href: 'https://data.alpaca.markets/v2'}));
+		descDataUrl.appendText('. Change this only if you are using a different Alpaca data provider.');
 
 		new Setting(containerEl)
 			.setName('Data base URL')
-			.setDesc('Defaults to https://data.alpaca.markets/v2.')
+			.setDesc(descDataUrl)
 			.addText(text => text
 				.setPlaceholder('https://data.alpaca.markets/v2')
 				.setValue(this.plugin.settings.alpacaDataBaseUrl)
@@ -350,10 +355,15 @@ export class SampleSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		const descStockSymbols = createFragment();
+		descStockSymbols.appendText('Comma-separated list of stock ticker symbols to display. To see the full list of supported symbols, check the ');
+		descStockSymbols.appendChild(createEl('a', {text: 'assets list', href: 'https://docs.alpaca.markets/reference/get-v2-assets-1'}));
+		descStockSymbols.appendText('.');
+
 		new Setting(containerEl)
 			.setName('Stock symbols')
-			.setDesc('Comma or space-separated tickers to show in the stock ticker.')
-			.addText(text => text
+			.setDesc(descStockSymbols)
+			.addTextArea(text => text
 				.setPlaceholder('e.g. AAPL, MSFT, TSLA')
 				.setValue(this.plugin.settings.alpacaSymbols)
 				.onChange(async (value) => {
