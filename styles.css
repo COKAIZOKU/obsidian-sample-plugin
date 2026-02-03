@@ -94,6 +94,10 @@
   font-variant-numeric: tabular-nums;
 }
 
+.stock-change.is-negative {
+  color: var(--stock-change-negative-color, var(--text-error));
+}
+
 .stock-price {
   color: var(--stock-price-color, var(--text-faint));
   font-variant-numeric: tabular-nums;

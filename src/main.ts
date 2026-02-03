@@ -18,11 +18,16 @@ const FALLBACK_HEADLINES: HeadlineItem[] = [
   { title: "Sample Headline 3: And Actually Get News" },
   { title: "Sample Headline 4: These Are Just Placeholder!" },
 ];
-const FALLBACK_STOCKS: Array<{ symbol: string; priceText: string; changeText: string }> = [
-  { symbol: "ADD", priceText: "$YOUR.API", changeText: "+KEY%" },
-  { symbol: "TO", priceText: "$SEE", changeText: "+STOCKS%" },
-  { symbol: "GET", priceText: "$LIVE", changeText: "+DATA%" },
-  { symbol: "STOCKS", priceText: "$HERE", changeText: "+NOW%" },
+const FALLBACK_STOCKS: Array<{
+  symbol: string;
+  priceText: string;
+  changeText: string;
+  isNegative: boolean;
+}> = [
+  { symbol: "ADD", priceText: "$YOUR.API", changeText: "+KEY%", isNegative: false },
+  { symbol: "TO", priceText: "$SEE", changeText: "+STOCKS%", isNegative: false },
+  { symbol: "GET", priceText: "$LIVE", changeText: "+DATA%", isNegative: false },
+  { symbol: "STOCKS", priceText: "$HERE", changeText: "+NOW%", isNegative: false },
 ];
 
 const normalizeDomains = (input: string): string[] => {
@@ -88,10 +93,12 @@ const toStockDisplayItem = (quote: StockQuote): {
   symbol: string;
   priceText: string;
   changeText: string;
+  isNegative: boolean;
 } => ({
   symbol: quote.symbol,
   priceText: formatPrice(quote.price),
   changeText: formatChange(quote.changePercent),
+  isNegative: (quote.changePercent ?? 0) < 0,
 });
 
 interface HeadlinesCache {
@@ -112,6 +119,7 @@ class MyPanelView extends ItemView {
   private newsDirection: TickerDirection;
   private stockDirection: TickerDirection;
   private stockChangeColor: string;
+  private stockChangeNegativeColor: string;
   private stockPriceColor: string;
 
   constructor(
@@ -122,7 +130,8 @@ class MyPanelView extends ItemView {
     newsDirection: TickerDirection,
     stockDirection: TickerDirection,
     stockPriceColor: string,
-    stockChangeColor: string
+    stockChangeColor: string,
+    stockChangeNegativeColor: string
   ) {
     super(leaf);
     this.plugin = plugin;
@@ -132,6 +141,7 @@ class MyPanelView extends ItemView {
     this.stockDirection = stockDirection;
     this.stockPriceColor = stockPriceColor;
     this.stockChangeColor = stockChangeColor;
+    this.stockChangeNegativeColor = stockChangeNegativeColor;
   }
 
   setTickerSettings(
@@ -147,9 +157,14 @@ class MyPanelView extends ItemView {
     this.applyTickerSettings();
   }
 
-  setStockColors(stockPriceColor: string, stockChangeColor: string) {
+  setStockColors(
+    stockPriceColor: string,
+    stockChangeColor: string,
+    stockChangeNegativeColor: string
+  ) {
     this.stockPriceColor = stockPriceColor;
     this.stockChangeColor = stockChangeColor;
+    this.stockChangeNegativeColor = stockChangeNegativeColor;
     this.applyColorVars();
   }
 
@@ -205,6 +220,10 @@ class MyPanelView extends ItemView {
   private applyColorVars() {
     this.setColorVar("--stock-price-color", this.stockPriceColor);
     this.setColorVar("--stock-change-color", this.stockChangeColor);
+    this.setColorVar(
+      "--stock-change-negative-color",
+      this.stockChangeNegativeColor
+    );
   }
 
   private setColorVar(name: string, value: string) {
@@ -250,11 +269,14 @@ class MyPanelView extends ItemView {
       ? quotes.map(toStockDisplayItem)
       : FALLBACK_STOCKS;
 
-    stocks.forEach(({ symbol, priceText, changeText }) => {
+    stocks.forEach(({ symbol, priceText, changeText, isNegative }) => {
       const item = stockList.createEl("li", { cls: "stock-item" });
       item.createSpan({ text: symbol });
       item.createSpan({ text: priceText, cls: "stock-price" });
-      item.createSpan({ text: changeText, cls: "stock-change" });
+      const changeSpan = item.createSpan({ text: changeText, cls: "stock-change" });
+      if (isNegative) {
+        changeSpan.addClass("is-negative");
+      }
     });
     this.applyColorVars();
     initTicker(container);
@@ -303,7 +325,8 @@ export default class MyPlugin extends Plugin {
 					this.settings.newsTickerDirection,
 					this.settings.stockTickerDirection,
 					this.settings.stockPriceColor,
-					this.settings.stockChangeColor
+					this.settings.stockChangeColor,
+					this.settings.stockChangeNegativeColor
 				)
 		);
 
@@ -344,7 +367,8 @@ export default class MyPlugin extends Plugin {
 							this.settings.newsTickerDirection,
 							this.settings.stockTickerDirection,
 							this.settings.stockPriceColor,
-							this.settings.stockChangeColor
+							this.settings.stockChangeColor,
+							this.settings.stockChangeNegativeColor
 						);
 					}
 
@@ -627,7 +651,8 @@ export default class MyPlugin extends Plugin {
 			if (view instanceof MyPanelView) {
 				view.setStockColors(
 					this.settings.stockPriceColor,
-					this.settings.stockChangeColor
+					this.settings.stockChangeColor,
+					this.settings.stockChangeNegativeColor
 				);
 			}
 		});

@@ -12,6 +12,7 @@ export interface MyPluginSettings {
 	stockTickerDirection: TickerDirection;
 	tickerSpeed?: TickerSpeed;
 	stockChangeColor: string;
+	stockChangeNegativeColor: string;
 	stockPriceColor: string;
 	alpacaApiKey: string;
 	alpacaApiSecret: string;
@@ -32,6 +33,7 @@ export const DEFAULT_SETTINGS: MyPluginSettings = {
 	newsTickerDirection: "left",
 	stockTickerDirection: "left",
 	stockChangeColor: "",
+	stockChangeNegativeColor: "",
 	stockPriceColor: "",
 	alpacaApiKey: "",
 	alpacaApiSecret: "",
@@ -454,6 +456,18 @@ export class SampleSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.stockChangeColor)
 				.onChange(async (value) => {
 					this.plugin.settings.stockChangeColor = value.trim();
+					await this.plugin.saveSettings();
+					this.plugin.updateTickerColors();
+				}));
+
+		new Setting(containerEl)
+			.setName('Stock change negative color')
+			.setDesc('Use any hex color for negative changes. Leave blank to use the theme default.')
+			.addText(text => text
+				.setPlaceholder('e.g. #ef4444')
+				.setValue(this.plugin.settings.stockChangeNegativeColor)
+				.onChange(async (value) => {
+					this.plugin.settings.stockChangeNegativeColor = value.trim();
 					await this.plugin.saveSettings();
 					this.plugin.updateTickerColors();
 				}));
