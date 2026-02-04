@@ -1,5 +1,5 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, ItemView, WorkspaceLeaf} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab, TickerDirection, TickerSpeed} from "./settings";
+import {DEFAULT_SETTINGS, GlobalTickerSettings, GlobalTickerSettingTab, TickerDirection, TickerSpeed} from "./settings";
 import { applyTickerSpeed, initTicker } from "./ticker";
 import { fetchCurrentsHeadlines } from "./api/news";
 import { fetchAlpacaStockQuotes, normalizeStockSymbols, StockQuote } from "./api/stocks";
@@ -108,12 +108,12 @@ interface HeadlinesCache {
 }
 
 interface PluginData {
-  settings?: Partial<MyPluginSettings>;
+  settings?: Partial<GlobalTickerSettings>;
   headlinesCache?: HeadlinesCache | null;
 }
 
 class MyPanelView extends ItemView {
-  private plugin: MyPlugin;
+  private plugin: GlobalTicker;
   private newsSpeed: TickerSpeed;
   private stockSpeed: TickerSpeed;
   private newsDirection: TickerDirection;
@@ -124,7 +124,7 @@ class MyPanelView extends ItemView {
 
   constructor(
     leaf: WorkspaceLeaf,
-    plugin: MyPlugin,
+    plugin: GlobalTicker,
     newsSpeed: TickerSpeed,
     stockSpeed: TickerSpeed,
     newsDirection: TickerDirection,
@@ -297,8 +297,8 @@ class MyPanelView extends ItemView {
 
 // Remember to rename these classes and interfaces!
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class GlobalTicker extends Plugin {
+	settings: GlobalTickerSettings;
 	private headlinesCache: HeadlinesCache | null = null;
 	private stockQuotesCache: { cacheKey: string; fetchedAt: number; quotes: StockQuote[] } | null = null;
 
@@ -380,7 +380,7 @@ export default class MyPlugin extends Plugin {
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new GlobalTickerSettingTab(this.app, this));
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
@@ -484,8 +484,8 @@ export default class MyPlugin extends Plugin {
 		});
 	}
 
-	private buildStockCacheKey(symbols: string[], baseUrl: string) {
-		return JSON.stringify({ symbols, baseUrl });
+	private buildStockCacheKey(symbols: string[]) {
+		return JSON.stringify({ symbols });
 	}
 
 	private async fetchStockQuotesFromApi(symbols: string[]): Promise<StockQuote[]> {
@@ -495,12 +495,10 @@ export default class MyPlugin extends Plugin {
 			return [];
 		}
 
-		const baseUrl = this.settings.alpacaDataBaseUrl.trim();
 		return fetchAlpacaStockQuotes({
 			apiKey,
 			apiSecret,
 			symbols,
-			baseUrl: baseUrl.length > 0 ? baseUrl : undefined,
 		});
 	}
 
@@ -587,8 +585,7 @@ export default class MyPlugin extends Plugin {
 			return [];
 		}
 
-		const baseUrl = this.settings.alpacaDataBaseUrl.trim();
-		const cacheKey = this.buildStockCacheKey(symbols, baseUrl);
+		const cacheKey = this.buildStockCacheKey(symbols);
 		const cache = this.stockQuotesCache;
 		const cacheMatches = cache?.cacheKey === cacheKey;
 		const cacheAge = cache ? Date.now() - cache.fetchedAt : Number.POSITIVE_INFINITY;
@@ -695,7 +692,7 @@ export default class MyPlugin extends Plugin {
 			return;
 		}
 
-		const rawSettings = data as Partial<MyPluginSettings>;
+		const rawSettings = data as Partial<GlobalTickerSettings>;
 		const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, rawSettings);
 		const legacyTickerSpeed = rawSettings?.tickerSpeed;
 		if (!rawSettings?.newsTickerSpeed && legacyTickerSpeed) {

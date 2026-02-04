@@ -1,10 +1,10 @@
 import {App, Notice, PluginSettingTab, Setting} from "obsidian";
-import MyPlugin from "./main";
+import GlobalTicker from "./main";
 
 export type TickerSpeed = "fast" | "slow" | "medium" | "very-slow";
 export type TickerDirection = "left" | "right";
 
-export interface MyPluginSettings {
+export interface GlobalTickerSettings {
 	mySetting: string;
 	newsTickerSpeed: TickerSpeed;
 	stockTickerSpeed: TickerSpeed;
@@ -16,7 +16,6 @@ export interface MyPluginSettings {
 	stockPriceColor: string;
 	alpacaApiKey: string;
 	alpacaApiSecret: string;
-	alpacaDataBaseUrl: string;
 	alpacaSymbols: string;
 	currentsApiKey: string;
 	currentsCategory: string;
@@ -27,7 +26,7 @@ export interface MyPluginSettings {
 	currentsExcludeDomains: string;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
+export const DEFAULT_SETTINGS: GlobalTickerSettings = {
 	mySetting: 'default',
 	newsTickerSpeed: "slow",
 	stockTickerSpeed: "slow",
@@ -38,7 +37,6 @@ export const DEFAULT_SETTINGS: MyPluginSettings = {
 	stockPriceColor: "",
 	alpacaApiKey: "",
 	alpacaApiSecret: "",
-	alpacaDataBaseUrl: "https://data.alpaca.markets/v2",
 	alpacaSymbols: "AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META",
 	currentsApiKey: "",
 	currentsCategory: "",
@@ -159,10 +157,10 @@ const CURRENTS_LANGUAGES: Array<[string, string]> = [
 	["vi", "Vietnamese"],
 ];
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+export class GlobalTickerSettingTab extends PluginSettingTab {
+	plugin: GlobalTicker;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: GlobalTicker) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -429,30 +427,6 @@ export class SampleSettingTab extends PluginSettingTab {
 					});
 			});
 		
-		const descDataUrl = createFragment();
-		descDataUrl.appendText('Defaults to ');
-		descDataUrl.appendChild(createEl('code', {text: 'https://data.alpaca.markets/v2'}));
-		descDataUrl.appendText('. Change this only if you are using a different Alpaca data provider. Only ');
-		descDataUrl.appendChild(createEl('code', {text: 'https://'}));;
-		descDataUrl.appendText(' URLs are allowed for security reasons.');
-
-		new Setting(containerEl)
-			.setName('Data base URL')
-			.setDesc(descDataUrl)
-			.addText(text => text
-				.setPlaceholder('https://data.alpaca.markets/v2')
-				.setValue(this.plugin.settings.alpacaDataBaseUrl)
-				.onChange(async (value) => {
-					const trimmed = value.trim();
-					if (/^http:\/\//i.test(trimmed)) {
-						new Notice("Please use https:// for the Alpaca data base URL.");
-						text.setValue(this.plugin.settings.alpacaDataBaseUrl);
-						return;
-					}
-					this.plugin.settings.alpacaDataBaseUrl = trimmed;
-					await this.plugin.saveSettings();
-				}));
-
 		const descStockSymbols = createFragment();
 		descStockSymbols.appendText('Comma-separated list of stocks ticker symbols to display. To see the full list of supported symbols, check the ');
 		descStockSymbols.appendChild(createEl('a', {text: 'assets list', href: 'https://docs.alpaca.markets/reference/get-v2-assets-1'}));
@@ -469,9 +443,14 @@ export class SampleSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+	const descHexColors = createFragment();
+		descHexColors.appendText('Use any hex color, you can find hex colors ');
+		descHexColors.appendChild(createEl('a', {text: 'here', href: 'https://htmlcolorcodes.com/'}));
+		descHexColors.appendText('. Leave blank to use the theme default.');
+
 		new Setting(containerEl)
 			.setName('Stocks positive change color')
-			.setDesc('Use any hex color. Leave blank to use the theme default.')
+			.setDesc(descHexColors)
 			.addText(text => text
 				.setPlaceholder('e.g. #a68af6')
 				.setValue(this.plugin.settings.stockChangeColor)
