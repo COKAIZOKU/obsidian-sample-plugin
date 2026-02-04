@@ -1,6 +1,6 @@
 {
-	"id": "news-ticker",
-	"name": "News Ticker",
+	"id": "global-ticker",
+	"name": "Global Ticker",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
 	"description": "Demonstrates some of the capabilities of the Obsidian API.",

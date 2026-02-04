@@ -338,9 +338,9 @@ export class SampleSettingTab extends PluginSettingTab {
 					});
 			});
 
-		containerEl.createEl('div', {text: 'Stock Settings', cls: 'setting-item-name setting-section-header'});
+		containerEl.createEl('div', {text: 'Stocks Settings', cls: 'setting-item-name setting-section-header'});
 		const descStockSettings = createFragment();
-		descStockSettings.appendText('Settings for the stock ticker. The stocks are fetched from the ');
+		descStockSettings.appendText('Settings for the stocks ticker. The stocks are fetched from the ');
 		descStockSettings.appendChild(createEl('a', {text: 'Alpaca Market Data API', href: 'https://docs.alpaca.markets/'}));
 		descStockSettings.appendText('.');
 		containerEl.createEl('div', {
@@ -348,8 +348,8 @@ export class SampleSettingTab extends PluginSettingTab {
 		}).appendChild(descStockSettings);
 
 		new Setting(containerEl)
-			.setName('Stock ticker speed')
-			.setDesc('Choose how fast the stock ticker scrolls.')
+			.setName('Stocks ticker speed')
+			.setDesc('Choose how fast the stocks ticker scrolls.')
 			.addDropdown(dropdown => dropdown
 				.addOption("very-slow", "Very Slow")
 				.addOption("slow", "Slow")
@@ -371,8 +371,8 @@ export class SampleSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Stock ticker direction')
-			.setDesc('Choose the scrolling direction for the stock ticker.')
+			.setName('Stocks ticker direction')
+			.setDesc('Choose the scrolling direction for the stocks ticker.')
 			.addDropdown(dropdown => dropdown
 				.addOption("left", "Left")
 				.addOption("right", "Right")
@@ -387,7 +387,7 @@ export class SampleSettingTab extends PluginSettingTab {
 				}));
 
 		const descAlpacaKey = createFragment();
-		descAlpacaKey.appendText('Used to fetch stock data. without it you will only see placeholder stock data. Get the free Alpaca API key by creating an account ');
+		descAlpacaKey.appendText('Used to fetch stocks data. without it you will only see placeholder stocks data. Get the free Alpaca API key by creating an account ');
 		descAlpacaKey.appendChild(createEl('a', {text: 'here', href: 'https://app.alpaca.markets/account/login?ref=alpaca.markets'}));
 		descAlpacaKey.appendText('.');
 
@@ -433,12 +433,12 @@ export class SampleSettingTab extends PluginSettingTab {
 				}));
 
 		const descStockSymbols = createFragment();
-		descStockSymbols.appendText('Comma-separated list of stock ticker symbols to display. To see the full list of supported symbols, check the ');
+		descStockSymbols.appendText('Comma-separated list of stocks ticker symbols to display. To see the full list of supported symbols, check the ');
 		descStockSymbols.appendChild(createEl('a', {text: 'assets list', href: 'https://docs.alpaca.markets/reference/get-v2-assets-1'}));
 		descStockSymbols.appendText('.');
 
 		new Setting(containerEl)
-			.setName('Stock symbols')
+			.setName('Stocks symbols')
 			.setDesc(descStockSymbols)
 			.addTextArea(text => text
 				.setPlaceholder('e.g. AAPL, MSFT, TSLA')
@@ -449,10 +449,10 @@ export class SampleSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Stock change color')
+			.setName('Stocks positive change color')
 			.setDesc('Use any hex color. Leave blank to use the theme default.')
 			.addText(text => text
-				.setPlaceholder('e.g. #22c55e')
+				.setPlaceholder('e.g. #a68af6')
 				.setValue(this.plugin.settings.stockChangeColor)
 				.onChange(async (value) => {
 					this.plugin.settings.stockChangeColor = value.trim();
@@ -461,10 +461,10 @@ export class SampleSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Stock change negative color')
-			.setDesc('Use any hex color for negative changes. Leave blank to use the theme default.')
+			.setName('Stocks negative change color')
+			.setDesc('Use any hex color. Leave blank to use the theme default.')
 			.addText(text => text
-				.setPlaceholder('e.g. #ef4444')
+				.setPlaceholder('e.g. #fb464c')
 				.setValue(this.plugin.settings.stockChangeNegativeColor)
 				.onChange(async (value) => {
 					this.plugin.settings.stockChangeNegativeColor = value.trim();
@@ -473,10 +473,10 @@ export class SampleSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Stock price color')
+			.setName('Stocks price color')
 			.setDesc('Use any hex color. Leave blank to use the theme default.')
 			.addText(text => text
-				.setPlaceholder('e.g. #94a3b8')
+				.setPlaceholder('e.g. #666666')
 				.setValue(this.plugin.settings.stockPriceColor)
 				.onChange(async (value) => {
 					this.plugin.settings.stockPriceColor = value.trim();
@@ -485,8 +485,8 @@ export class SampleSettingTab extends PluginSettingTab {
 				}));
 		
 		new Setting(containerEl)
-			.setName('Refresh stock data')
-			.setDesc('Fetch the latest stock quotes.')
+			.setName('Refresh stocks data')
+			.setDesc('Fetch the latest stocks quotes.')
 			.addButton(button => {
 				button
 					.setButtonText('Refresh')
@@ -496,10 +496,10 @@ export class SampleSettingTab extends PluginSettingTab {
 						button.setButtonText("Refreshing...");
 						try {
 							await this.plugin.refreshStocks();
-							new Notice("Stock data refreshed.");
+							new Notice("Stocks data refreshed.");
 						} catch (error) {
-							console.error("Failed to refresh stock data", error);
-							new Notice("Failed to refresh stock data. Check your Alpaca credentials and connection.");
+							console.error("Failed to refresh stocks data", error);
+							new Notice("Failed to refresh stocks data. Check your Alpaca credentials and connection.");
 						} finally {
 							button.setDisabled(false);
 							button.setButtonText("Refresh");
