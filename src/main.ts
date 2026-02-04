@@ -392,11 +392,13 @@ export default class MyPlugin extends Plugin {
 
 	private buildHeadlinesCacheKey(resolvedLimit: number) {
 		const domains = normalizeDomains(this.settings.currentsDomains).join(",");
+		const excludedDomains = normalizeDomains(this.settings.currentsExcludeDomains).join(",");
 		return JSON.stringify({
 			category: this.settings.currentsCategory.trim(),
 			region: this.settings.currentsRegion.trim(),
 			language: this.settings.currentsLanguage.trim(),
 			domains,
+			excludedDomains,
 			limit: resolvedLimit,
 		});
 	}
@@ -411,6 +413,7 @@ export default class MyPlugin extends Plugin {
 		const region = this.settings.currentsRegion.trim();
 		const language = this.settings.currentsLanguage.trim();
 		const domains = normalizeDomains(this.settings.currentsDomains);
+		const excludedDomains = normalizeDomains(this.settings.currentsExcludeDomains);
 
 		const baseOptions = {
 			apiKey,
@@ -418,6 +421,7 @@ export default class MyPlugin extends Plugin {
 			category: category.length > 0 ? category : undefined,
 			country: region.length > 0 ? region : undefined,
 			language: language.length > 0 ? language : undefined,
+			params: excludedDomains.length > 0 ? { domain_not: excludedDomains } : undefined,
 		};
 
 		if (domains.length > 0) {
@@ -433,6 +437,7 @@ export default class MyPlugin extends Plugin {
 						domain,
 						start_date: startDate,
 						limit: resolvedLimit,
+						...(excludedDomains.length > 0 ? { domain_not: excludedDomains } : {}),
 					},
 				});
 

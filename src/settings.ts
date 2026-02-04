@@ -24,6 +24,7 @@ export interface MyPluginSettings {
 	currentsRegion: string;
 	currentsLanguage: string;
 	currentsDomains: string;
+	currentsExcludeDomains: string;
 }
 
 export const DEFAULT_SETTINGS: MyPluginSettings = {
@@ -44,7 +45,8 @@ export const DEFAULT_SETTINGS: MyPluginSettings = {
 	currentsLimit: 5,
 	currentsRegion: "",
 	currentsLanguage: "",
-	currentsDomains: ""
+	currentsDomains: "",
+	currentsExcludeDomains: ""
 }
 
 const CURRENTS_REGIONS: Array<[string, string]> = [
@@ -250,7 +252,7 @@ export class SampleSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 		const descDomains = createFragment();
-		descDomains.appendText('Filter headlines by source domain(s). To see if a domain is supported, search for it ');
+		descDomains.appendText('Filter headlines by source domains. To see if a domain is supported, search for it ');
 		descDomains.appendChild(createEl('a', {text: 'here', href: 'https://www.currentsapi.services/en/statistic/'}));
 		descDomains.appendText('.');
 
@@ -262,6 +264,17 @@ export class SampleSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.currentsDomains)
 				.onChange(async (value) => {
 					this.plugin.settings.currentsDomains = value.trim();
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Exclude domains')
+			.setDesc('Exclude headlines from specific domains.')
+			.addTextArea(text => text
+				.setPlaceholder('e.g. bbc.com, nytimes.com')
+				.setValue(this.plugin.settings.currentsExcludeDomains)
+				.onChange(async (value) => {
+					this.plugin.settings.currentsExcludeDomains = value.trim();
 					await this.plugin.saveSettings();
 				}));
 
