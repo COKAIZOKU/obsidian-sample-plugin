@@ -14,9 +14,8 @@ export interface GlobalTickerSettings {
 	stockChangeColor: string;
 	stockChangeNegativeColor: string;
 	stockPriceColor: string;
-	alpacaApiKey: string;
-	alpacaApiSecret: string;
-	alpacaSymbols: string;
+	finnhubApiKey: string;
+	finnhubSymbols: string;
 	currentsApiKey: string;
 	currentsCategory: string;
 	currentsLimit: number;
@@ -35,12 +34,11 @@ export const DEFAULT_SETTINGS: GlobalTickerSettings = {
 	stockChangeColor: "",
 	stockChangeNegativeColor: "",
 	stockPriceColor: "",
-	alpacaApiKey: "",
-	alpacaApiSecret: "",
-	alpacaSymbols: "AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META",
+	finnhubApiKey: "",
+	finnhubSymbols: "AAPL, MSFT, GOOGL, AMZN, TSLA, NVDA, META",
 	currentsApiKey: "",
 	currentsCategory: "",
-	currentsLimit: 5,
+	currentsLimit: 10,
 	currentsRegion: "",
 	currentsLanguage: "",
 	currentsDomains: "",
@@ -312,14 +310,14 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 			.addText(text => {
 				text.inputEl.type = "number";
 				text
-					.setPlaceholder('3')
+					.setPlaceholder('5')
 					.setValue(String(this.plugin.settings.currentsLimit))
 					.onChange(async (value) => {
 						const parsed = Number.parseInt(value, 10);
 						if (Number.isNaN(parsed)) {
 							return;
 						}
-						const clamped = Math.min(10, Math.max(3, parsed));
+						const clamped = Math.min(10, Math.max(1, parsed));
 						this.plugin.settings.currentsLimit = clamped;
 						text.setValue(String(clamped));
 						await this.plugin.saveSettings();
@@ -352,7 +350,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 		containerEl.createEl('div', {text: 'Stocks Settings', cls: 'setting-item-name setting-section-header margin-top'});
 		const descStockSettings = createFragment();
 		descStockSettings.appendText('Settings for the stocks ticker. The stocks are fetched from the ');
-		descStockSettings.appendChild(createEl('a', {text: 'Alpaca Market Data API', href: 'https://docs.alpaca.markets/'}));
+		descStockSettings.appendChild(createEl('a', {text: 'Finnhub Stock API', href: 'https://finnhub.io/docs/api'}));
 		descStockSettings.appendText('.');
 		containerEl.createEl('div', {
 			cls: 'setting-item-description setting-section-description'
@@ -397,49 +395,32 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 					this.plugin.updateTickerSettings();
 				}));
 
-		const descAlpacaKey = createFragment();
-		descAlpacaKey.appendText('Used to fetch stocks data. without it you will only see placeholder stocks data. Get the free Alpaca API key by creating an account ');
-		descAlpacaKey.appendChild(createEl('a', {text: 'here', href: 'https://app.alpaca.markets/account/login?ref=alpaca.markets'}));
-		descAlpacaKey.appendText('.');
+		const descFinnhubKey = createFragment();
+		descFinnhubKey.appendText('Used to fetch stocks data. without it you will only see placeholder stocks data. Get the free Finnhub API key by creating an account ');
+		descFinnhubKey.appendChild(createEl('a', {text: 'here', href: 'https://finnhub.io'}));
+		descFinnhubKey.appendText('.');
 
 		new Setting(containerEl)
-			.setName('Alpaca API key')
-			.setDesc(descAlpacaKey)
+			.setName('Finnhub API key')
+			.setDesc(descFinnhubKey)
 			.addText(text => text
-				.setPlaceholder('Enter your Alpaca API key')
-				.setValue(this.plugin.settings.alpacaApiKey)
+				.setPlaceholder('Enter your Finnhub API key')
+				.setValue(this.plugin.settings.finnhubApiKey)
 				.onChange(async (value) => {
-					this.plugin.settings.alpacaApiKey = value.trim();
+					this.plugin.settings.finnhubApiKey = value.trim();
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
-			.setName('Alpaca API secret')
-			.setDesc('Your Alpaca API secret.')
-			.addText(text => {
-				text.inputEl.type = "password";
-				text
-					.setPlaceholder('Enter your Alpaca API secret')
-					.setValue(this.plugin.settings.alpacaApiSecret)
-					.onChange(async (value) => {
-						this.plugin.settings.alpacaApiSecret = value.trim();
-						await this.plugin.saveSettings();
-					});
-			});
-		
 		const descStockSymbols = createFragment();
-		descStockSymbols.appendText('Comma-separated list of stocks ticker symbols to display. To see the full list of supported symbols, check the ');
-		descStockSymbols.appendChild(createEl('a', {text: 'assets list', href: 'https://docs.alpaca.markets/reference/get-v2-assets-1'}));
-		descStockSymbols.appendText('.');
-
+		descStockSymbols.appendText('Comma-separated list of stocks ticker symbols to display.');
 		new Setting(containerEl)
 			.setName('Stocks symbols')
 			.setDesc(descStockSymbols)
 			.addTextArea(text => text
 				.setPlaceholder('e.g. AAPL, MSFT, TSLA')
-				.setValue(this.plugin.settings.alpacaSymbols)
+				.setValue(this.plugin.settings.finnhubSymbols)
 				.onChange(async (value) => {
-					this.plugin.settings.alpacaSymbols = value;
+					this.plugin.settings.finnhubSymbols = value;
 					await this.plugin.saveSettings();
 				}));
 
@@ -499,7 +480,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 							new Notice("Stocks data refreshed.");
 						} catch (error) {
 							console.error("Failed to refresh stocks data", error);
-							new Notice("Failed to refresh stocks data. Check your Alpaca credentials and connection.");
+							new Notice("Failed to refresh stocks data. Check your Finnhub API key and connection.");
 						} finally {
 							button.setDisabled(false);
 							button.setButtonText("Refresh");

@@ -1,6 +1,6 @@
 import { requestUrl } from "obsidian";
 
-export const ALPACA_DATA_BASE_URL = "https://data.alpaca.markets/v2";
+export const FINNHUB_API_BASE_URL = "https://finnhub.io/api/v1";
 
 export interface StockQuote {
   symbol: string;
@@ -8,42 +8,27 @@ export interface StockQuote {
   changePercent?: number;
 }
 
-interface AlpacaTrade {
-  p?: number;
+interface FinnhubQuoteResponse {
+  c?: number | string;
+  pc?: number | string;
 }
 
-interface AlpacaQuote {
-  ap?: number;
-  bp?: number;
+interface FinnhubErrorResponse {
+  error?: string;
 }
 
-interface AlpacaBar {
-  c?: number;
-}
-
-interface AlpacaSnapshot {
-  latestTrade?: AlpacaTrade;
-  latestQuote?: AlpacaQuote;
-  dailyBar?: AlpacaBar;
-  prevDailyBar?: AlpacaBar;
-}
-
-interface AlpacaErrorResponse {
-  code?: number | string;
-  message?: string;
-}
-
-export interface FetchAlpacaStockQuotesOptions {
+export interface FetchFinnhubStockQuotesOptions {
   apiKey: string;
-  apiSecret: string;
   symbols: string[];
-  baseUrl?: string;
-  feed?: string;
 }
 
 const normalizeNumber = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
   return undefined;
 };
@@ -71,95 +56,43 @@ export const normalizeStockSymbols = (input: string): string[] => {
   return unique;
 };
 
-const normalizeBaseUrl = (input?: string): string => {
-  const trimmed = (input ?? "").trim();
-  if (/^http:\/\//i.test(trimmed)) {
-    throw new Error("Alpaca base URL must use https.");
-  }
-  const base = trimmed.length > 0 ? trimmed : ALPACA_DATA_BASE_URL;
-  return base.replace(/\/+$/, "");
-};
-
-const extractSnapshots = (
-  payload: unknown
-): Record<string, AlpacaSnapshot> => {
-  if (!payload || typeof payload !== "object") {
-    return {};
-  }
-
-  const record = payload as Record<string, unknown>;
-  const candidate =
-    record.snapshots && typeof record.snapshots === "object"
-      ? (record.snapshots as Record<string, unknown>)
-      : record;
-
-  const snapshots: Record<string, AlpacaSnapshot> = {};
-  Object.entries(candidate).forEach(([symbol, value]) => {
-    if (!value || typeof value !== "object") {
-      return;
-    }
-    const snapshot = value as AlpacaSnapshot;
-    if (
-      "latestTrade" in snapshot ||
-      "latestQuote" in snapshot ||
-      "dailyBar" in snapshot ||
-      "prevDailyBar" in snapshot
-    ) {
-      snapshots[symbol] = snapshot;
-    }
-  });
-
-  return snapshots;
-};
-
-const buildSnapshotUrl = (
-  baseUrl: string,
-  symbols: string[],
-  feed?: string
-): string => {
+const buildQuoteUrl = (symbol: string, apiKey: string): string => {
   const query = new URLSearchParams();
-  query.set("symbols", symbols.join(","));
-  if (feed && feed.trim().length > 0) {
-    query.set("feed", feed.trim());
-  }
-  return `${baseUrl}/stocks/snapshots?${query.toString()}`;
+  query.set("symbol", symbol);
+  query.set("token", apiKey);
+  return `${FINNHUB_API_BASE_URL}/quote?${query.toString()}`;
 };
 
-const toStockQuote = (
+const toStockQuoteFromQuote = (
   symbol: string,
-  snapshot?: AlpacaSnapshot
+  quote?: FinnhubQuoteResponse
 ): StockQuote => {
-  if (!snapshot) {
+  if (!quote) {
     return { symbol };
   }
 
-  const latestTradePrice = normalizeNumber(snapshot.latestTrade?.p);
-  const dailyClose = normalizeNumber(snapshot.dailyBar?.c);
-  const askPrice = normalizeNumber(snapshot.latestQuote?.ap);
-  const bidPrice = normalizeNumber(snapshot.latestQuote?.bp);
-  const latestPrice =
-    latestTradePrice ?? dailyClose ?? askPrice ?? bidPrice;
-  const prevClose = normalizeNumber(snapshot.prevDailyBar?.c);
-
+  const currentPrice = normalizeNumber(quote.c);
+  const previousClose = normalizeNumber(quote.pc);
   const changePercent =
-    latestPrice !== undefined && prevClose !== undefined && prevClose !== 0
-      ? ((latestPrice - prevClose) / prevClose) * 100
+    currentPrice !== undefined &&
+    previousClose !== undefined &&
+    previousClose !== 0
+      ? ((currentPrice - previousClose) / previousClose) * 100
       : undefined;
 
   return {
     symbol,
-    price: latestPrice,
+    price: currentPrice,
     changePercent,
   };
 };
 
-export async function fetchAlpacaStockQuotes(
-  options: FetchAlpacaStockQuotesOptions
+export async function fetchFinnhubStockQuotes(
+  options: FetchFinnhubStockQuotesOptions
 ): Promise<StockQuote[]> {
   const apiKey = options.apiKey.trim();
-  const apiSecret = options.apiSecret.trim();
-  if (!apiKey || !apiSecret) {
-    throw new Error("Alpaca API key and secret are required.");
+  if (!apiKey) {
+    throw new Error("Finnhub API key is required.");
   }
 
   const symbols = options.symbols.map((symbol) => symbol.trim()).filter(Boolean);
@@ -167,27 +100,53 @@ export async function fetchAlpacaStockQuotes(
     return [];
   }
 
-  const baseUrl = normalizeBaseUrl(options.baseUrl);
-  const url = buildSnapshotUrl(baseUrl, symbols, options.feed);
+  const requestQuote = async (symbol: string): Promise<StockQuote> => {
+    const url = buildQuoteUrl(symbol, apiKey);
+    const response = await requestUrl({
+      url,
+      throw: false,
+    });
 
-  const response = await requestUrl({
-    url,
-    headers: {
-      "APCA-API-KEY-ID": apiKey,
-      "APCA-API-SECRET-KEY": apiSecret,
-    },
-    throw: false,
+    const payload = response.json as FinnhubQuoteResponse | FinnhubErrorResponse | unknown;
+    if (response.status >= 400) {
+      const details =
+        payload && typeof payload === "object" && "error" in payload
+          ? `: ${String((payload as FinnhubErrorResponse).error)}`
+          : "";
+      throw new Error(
+        `Finnhub API request failed (${response.status})${details}`
+      );
+    }
+
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "error" in payload &&
+      (payload as FinnhubErrorResponse).error
+    ) {
+      throw new Error(
+        `Finnhub API error: ${String(
+          (payload as FinnhubErrorResponse).error
+        )}`
+      );
+    }
+
+    return toStockQuoteFromQuote(symbol, payload as FinnhubQuoteResponse);
+  };
+
+  const results = await Promise.allSettled(
+    symbols.map((symbol) => requestQuote(symbol))
+  );
+
+  return results.map((result, index) => {
+    const symbol = symbols[index] ?? "";
+    if (result.status === "fulfilled") {
+      return result.value;
+    }
+    console.warn("[my-plugin] Failed to fetch Finnhub quote.", {
+      symbol,
+      error: result.reason,
+    });
+    return { symbol };
   });
-
-  const payload = response.json as AlpacaErrorResponse | unknown;
-  if (response.status >= 400) {
-    const details =
-      payload && typeof payload === "object" && "message" in payload
-        ? `: ${String((payload as AlpacaErrorResponse).message)}`
-        : "";
-    throw new Error(`Alpaca API request failed (${response.status})${details}`);
-  }
-
-  const snapshots = extractSnapshots(payload);
-  return symbols.map((symbol) => toStockQuote(symbol, snapshots[symbol]));
 }

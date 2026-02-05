@@ -5,6 +5,20 @@ const getGap = (scrollerInner: HTMLElement): number => {
   return Number.isFinite(gapValue) ? gapValue : 0;
 };
 
+const getItemsWidth = (items: Element[], gap: number): number => {
+  if (items.length === 0) {
+    return 0;
+  }
+
+  const total = items.reduce((sum, item) => sum + item.getBoundingClientRect().width, 0);
+  if (!Number.isFinite(total) || total <= 0) {
+    return 0;
+  }
+
+  const gaps = Math.max(0, items.length - 1) * gap;
+  return total + gaps;
+};
+
 export function applyTickerSpeed(scroller: HTMLElement): void {
   const scrollerInner = scroller.querySelector<HTMLElement>(".scroller__inner");
   if (!scrollerInner) {
@@ -66,16 +80,26 @@ export function initTicker(root: ParentNode = document): void {
 
     const appendClones = (items: Element[]) => {
       items.forEach((item) => {
-        const duplicatedItem = item.cloneNode(true) as Element;
+        const duplicatedItem = item.cloneNode(true) as HTMLElement;
         duplicatedItem.setAttribute("aria-hidden", "true");
+        duplicatedItem.setAttribute("data-ticker-clone", "true");
+        duplicatedItem.style.setProperty("display", "inline-flex", "important");
+        duplicatedItem.style.setProperty("visibility", "visible", "important");
+        duplicatedItem.style.setProperty("opacity", "1", "important");
         scrollerInner.appendChild(duplicatedItem);
       });
     };
 
     const removeClones = () => {
-      scrollerInner
-        .querySelectorAll('[aria-hidden="true"]')
-        .forEach((clone) => clone.remove());
+      Array.from(scrollerInner.children).forEach((child) => {
+        const el = child as HTMLElement;
+        if (
+          el.getAttribute("data-ticker-clone") === "true" ||
+          el.getAttribute("aria-hidden") === "true"
+        ) {
+          el.remove();
+        }
+      });
     };
 
     const ensureSeamlessLoop = (): boolean => {
@@ -85,29 +109,51 @@ export function initTicker(root: ParentNode = document): void {
         return false;
       }
 
-      const baseWidth = scrollerInner.scrollWidth;
-      if (!baseWidth || scrollerInner.children.length === 0) {
+      if (scrollerInner.children.length === 0) {
         return false;
       }
 
+      // Always add one full copy so we can measure the true loop distance.
+      appendClones(originalItems);
+
+      const scrollerRect = scrollerInner.getBoundingClientRect();
+      const firstOriginal = originalItems[0] as HTMLElement | undefined;
+      const firstClone = scrollerInner.querySelector<HTMLElement>(
+        '[data-ticker-clone="true"]'
+      );
       const gap = getGap(scrollerInner);
-      const loopDistance = baseWidth + gap;
-      const maxViewport = Math.min(scrollerWidth, MAX_VIEWPORT_PX);
-      let guard = 0;
-      while (
-        scrollerInner.scrollWidth < maxViewport + loopDistance &&
-        guard < MAX_CLONES
-      ) {
-        appendClones(originalItems);
-        guard += 1;
+      const measuredWidth = getItemsWidth(originalItems, gap);
+      const measuredLoopDistance =
+        firstOriginal && firstClone
+          ? firstClone.getBoundingClientRect().left -
+            firstOriginal.getBoundingClientRect().left
+          : 0;
+      const baseWidth = measuredWidth || scrollerRect.width || scrollerInner.scrollWidth;
+      const loopDistance =
+        measuredLoopDistance > 0 && Number.isFinite(measuredLoopDistance)
+          ? measuredLoopDistance
+          : baseWidth + gap;
+      if (!loopDistance || !Number.isFinite(loopDistance)) {
+        return false;
       }
-      if (scrollerWidth > MAX_VIEWPORT_PX || guard >= MAX_CLONES) {
+
+      const maxViewport = Math.min(scrollerWidth, MAX_VIEWPORT_PX);
+      const copiesNeeded = Math.max(
+        2,
+        Math.ceil((maxViewport + loopDistance) / loopDistance)
+      );
+      const maxCopies = MAX_CLONES + 1;
+      const targetCopies = Math.min(copiesNeeded, maxCopies);
+      for (let copy = 2; copy < targetCopies; copy += 1) {
+        appendClones(originalItems);
+      }
+      if (scrollerWidth > MAX_VIEWPORT_PX || copiesNeeded > maxCopies) {
         console.warn(
           "[my-plugin] Ticker reached clone cap; consider reducing window width or list length.",
           {
             scrollerWidth,
             maxViewport: MAX_VIEWPORT_PX,
-            clones: guard,
+            clones: targetCopies - 1,
             baseWidth,
             loopDistance,
           }

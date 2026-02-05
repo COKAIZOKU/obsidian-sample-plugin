@@ -5,6 +5,11 @@
   gap: 1rem;
 }
 
+.scroller {
+  width: 100%;
+  align-self: stretch;
+}
+
 .scroller[data-animated="true"] {
   overflow: hidden;
 }
@@ -20,6 +25,12 @@
   animation: scroll var(--_animation-duration, 40s)
     var(--_animation-direction, forwards) linear infinite;
   animation-play-state: var(--_animation-play-state, running);
+}
+
+.scroller__inner [data-ticker-clone="true"] {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 

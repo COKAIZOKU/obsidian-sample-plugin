@@ -2,7 +2,7 @@ import {App, Editor, MarkdownView, Modal, Notice, Plugin, ItemView, WorkspaceLea
 import {DEFAULT_SETTINGS, GlobalTickerSettings, GlobalTickerSettingTab, TickerDirection, TickerSpeed} from "./settings";
 import { applyTickerSpeed, initTicker } from "./ticker";
 import { fetchCurrentsHeadlines } from "./api/news";
-import { fetchAlpacaStockQuotes, normalizeStockSymbols, StockQuote } from "./api/stocks";
+import { fetchFinnhubStockQuotes, normalizeStockSymbols, StockQuote } from "./api/stocks";
 
 const VIEW_TYPE_MY_PANEL = "my-plugin-panel";
 interface HeadlineItem {
@@ -110,6 +110,12 @@ interface HeadlinesCache {
 interface PluginData {
   settings?: Partial<GlobalTickerSettings>;
   headlinesCache?: HeadlinesCache | null;
+}
+
+interface LegacyAlpacaSettings {
+  alpacaApiKey?: string;
+  alpacaApiSecret?: string;
+  alpacaSymbols?: string;
 }
 
 class MyPanelView extends ItemView {
@@ -489,15 +495,13 @@ export default class GlobalTicker extends Plugin {
 	}
 
 	private async fetchStockQuotesFromApi(symbols: string[]): Promise<StockQuote[]> {
-		const apiKey = this.settings.alpacaApiKey.trim();
-		const apiSecret = this.settings.alpacaApiSecret.trim();
-		if (!apiKey || !apiSecret) {
+		const apiKey = this.settings.finnhubApiKey.trim();
+		if (!apiKey) {
 			return [];
 		}
 
-		return fetchAlpacaStockQuotes({
+		return fetchFinnhubStockQuotes({
 			apiKey,
-			apiSecret,
 			symbols,
 		});
 	}
@@ -574,14 +578,13 @@ export default class GlobalTicker extends Plugin {
 	}
 
 	async getStockQuotes(options?: { forceRefresh?: boolean }): Promise<StockQuote[]> {
-		const symbols = normalizeStockSymbols(this.settings.alpacaSymbols);
+		const symbols = normalizeStockSymbols(this.settings.finnhubSymbols);
 		if (symbols.length === 0) {
 			return [];
 		}
 
-		const apiKey = this.settings.alpacaApiKey.trim();
-		const apiSecret = this.settings.alpacaApiSecret.trim();
-		if (!apiKey || !apiSecret) {
+		const apiKey = this.settings.finnhubApiKey.trim();
+		if (!apiKey) {
 			return [];
 		}
 
@@ -607,7 +610,7 @@ export default class GlobalTicker extends Plugin {
 				return quotes.slice(0, symbols.length);
 			}
 		} catch (error) {
-			console.error("Failed to fetch Alpaca stock quotes", error);
+			console.error("Failed to fetch Finnhub stock quotes", error);
 		}
 
 		if (cacheMatches && cache?.quotes.length) {
@@ -669,6 +672,13 @@ export default class GlobalTicker extends Plugin {
 				DEFAULT_SETTINGS,
 				typedData.settings ?? {}
 			);
+			const legacyAlpaca = typedData.settings as LegacyAlpacaSettings | undefined;
+			if (!mergedSettings.finnhubApiKey && legacyAlpaca?.alpacaApiKey) {
+				mergedSettings.finnhubApiKey = legacyAlpaca.alpacaApiKey;
+			}
+			if (!mergedSettings.finnhubSymbols && legacyAlpaca?.alpacaSymbols) {
+				mergedSettings.finnhubSymbols = legacyAlpaca.alpacaSymbols;
+			}
 			const legacyTickerSpeed = typedData.settings?.tickerSpeed;
 			if (!typedData.settings?.newsTickerSpeed && legacyTickerSpeed) {
 				mergedSettings.newsTickerSpeed = legacyTickerSpeed;
@@ -694,6 +704,13 @@ export default class GlobalTicker extends Plugin {
 
 		const rawSettings = data as Partial<GlobalTickerSettings>;
 		const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, rawSettings);
+		const legacyAlpaca = rawSettings as LegacyAlpacaSettings | undefined;
+		if (!mergedSettings.finnhubApiKey && legacyAlpaca?.alpacaApiKey) {
+			mergedSettings.finnhubApiKey = legacyAlpaca.alpacaApiKey;
+		}
+		if (!mergedSettings.finnhubSymbols && legacyAlpaca?.alpacaSymbols) {
+			mergedSettings.finnhubSymbols = legacyAlpaca.alpacaSymbols;
+		}
 		const legacyTickerSpeed = rawSettings?.tickerSpeed;
 		if (!rawSettings?.newsTickerSpeed && legacyTickerSpeed) {
 			mergedSettings.newsTickerSpeed = legacyTickerSpeed;
