@@ -89,11 +89,23 @@ const formatChange = (value?: number): string => {
   return `${sign}${value.toFixed(2)}%`;
 };
 
-const formatLastRefreshed = (timestamp?: number | null): string => {
+const formatLastRefreshed = (
+  timestamp?: number | null,
+  useUsDateFormat?: boolean
+): string => {
   if (!timestamp) {
     return "Last refreshed: ---";
   }
-  return `Last refreshed: ${new Date(timestamp).toLocaleString()}`;
+  const date = new Date(timestamp);
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear()).slice(-2);
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const formatted = useUsDateFormat
+    ? `${month}/${day}/${year}`
+    : `${day}/${month}/${year}`;
+  return `Last refreshed: ${formatted} ${hours}:${minutes}`;
 };
 
 const toStockDisplayItem = (quote: StockQuote): {
@@ -315,7 +327,10 @@ class MyPanelView extends ItemView {
     const newsFooter = group.createDiv({ cls: "ticker-footer" });
     newsFooter.createSpan({
       cls: "ticker-refresh-time",
-      text: formatLastRefreshed(this.plugin.getHeadlinesLastRefreshedAt()),
+      text: formatLastRefreshed(
+        this.plugin.getHeadlinesLastRefreshedAt(),
+        this.plugin.settings.useUsDateFormat
+      ),
     });
     const refreshNewsButton = newsFooter.createEl("button", {
       cls: ["clickable-icon", "ticker-refresh-button"],
@@ -349,7 +364,10 @@ class MyPanelView extends ItemView {
     const stockFooter = group.createDiv({ cls: "ticker-footer" });
     stockFooter.createSpan({
       cls: "ticker-refresh-time",
-      text: formatLastRefreshed(lastRefreshedAt),
+      text: formatLastRefreshed(
+        lastRefreshedAt,
+        this.plugin.settings.useUsDateFormat
+      ),
     });
     const refreshButton = stockFooter.createEl("button", {
       cls: ["clickable-icon", "ticker-refresh-button"],

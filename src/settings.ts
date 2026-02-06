@@ -12,6 +12,7 @@ export interface GlobalTickerSettings {
 	stockTickerDirection: TickerDirection;
 	showNewsFooter: boolean;
 	showStockFooter: boolean;
+	useUsDateFormat: boolean;
 	tickerSpeed?: TickerSpeed;
 	stockChangeColor: string;
 	stockChangeNegativeColor: string;
@@ -35,6 +36,7 @@ export const DEFAULT_SETTINGS: GlobalTickerSettings = {
 	stockTickerDirection: "left",
 	showNewsFooter: true,
 	showStockFooter: true,
+	useUsDateFormat: false,
 	stockChangeColor: "",
 	stockChangeNegativeColor: "",
 	stockPriceColor: "",
@@ -172,7 +174,23 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('div', {text: 'News Settings', cls: 'setting-item-name setting-section-header'});
+		containerEl.createEl('div', {text: 'Global Settings', cls: 'setting-item-name setting-section-header'});
+				new Setting(containerEl)
+			.setName("Date format")
+			.setDesc("Choose the date format used in the refresh footer.")
+			.addDropdown(dropdown => {
+				dropdown.addOption("dmy", "DD/MM/YY");
+				dropdown.addOption("mdy", "MM/DD/YY");
+				dropdown
+					.setValue(this.plugin.settings.useUsDateFormat ? "mdy" : "dmy")
+					.onChange(async (value) => {
+						this.plugin.settings.useUsDateFormat = value === "mdy";
+						await this.plugin.saveSettings();
+						await this.plugin.refreshPanels();
+					});
+			});
+			
+		containerEl.createEl('div', {text: 'News Settings', cls: 'setting-item-name setting-section-header setting-section-header-margin-top'});
 
 		const descCurrentsKey = createFragment();
 		descCurrentsKey.appendText('Used to fetch live headlines, without it you will only see placeholder headlines. Get the free Currents API key by creating an account ');
