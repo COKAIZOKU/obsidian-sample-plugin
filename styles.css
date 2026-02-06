@@ -95,6 +95,7 @@
 .tag-list {
   padding-inline: 0;
   list-style: none;
+  gap: 3rem;
 }
 
 .tag-list li {
@@ -161,6 +162,7 @@
   padding-top: .3rem;
   padding-bottom: .3rem;
   padding-left: .5rem;
+  padding-right: .5rem;
   flex: 0 0 auto;
 }
 

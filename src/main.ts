@@ -272,31 +272,35 @@ class MyPanelView extends ItemView {
     const list = scroller.createEl("ul", { cls: ["tag-list", "scroller__inner"] });
     await this.loadHeadlines(list);
 
-    section.createDiv({ cls: "ticker-divider" });
-    const newsFooter = section.createDiv({ cls: "ticker-footer" });
-    newsFooter.createSpan({
-      cls: "ticker-refresh-time",
-      text: formatLastRefreshed(this.plugin.getHeadlinesLastRefreshedAt()),
-    });
-    const refreshNewsButton = newsFooter.createEl("button", {
-      cls: ["clickable-icon", "ticker-refresh-button"],
-      attr: {
-        "aria-label": "Refresh headlines",
-        type: "button",
-        title: "Refresh headlines",
-      },
-    });
-    setIcon(refreshNewsButton, "refresh-cw");
-    refreshNewsButton.addEventListener("click", async () => {
-      refreshNewsButton.disabled = true;
-      try {
-        await this.plugin.refreshHeadlines();
-      } finally {
-        refreshNewsButton.disabled = false;
-      }
-    });
+    if (this.plugin.settings.showNewsFooter) {
+      section.createDiv({ cls: "ticker-divider" });
+      const newsFooter = section.createDiv({ cls: "ticker-footer" });
+      newsFooter.createSpan({
+        cls: "ticker-refresh-time",
+        text: formatLastRefreshed(this.plugin.getHeadlinesLastRefreshedAt()),
+      });
+      const refreshNewsButton = newsFooter.createEl("button", {
+        cls: ["clickable-icon", "ticker-refresh-button"],
+        attr: {
+          "aria-label": "Refresh headlines",
+          type: "button",
+          title: "Refresh headlines",
+        },
+      });
+      setIcon(refreshNewsButton, "refresh-cw");
+      refreshNewsButton.addEventListener("click", async () => {
+        refreshNewsButton.disabled = true;
+        try {
+          await this.plugin.refreshHeadlines();
+        } finally {
+          refreshNewsButton.disabled = false;
+        }
+      });
 
-    section.createDiv({ cls: "ticker-divider" });
+      section.createDiv({ cls: "ticker-divider" });
+    } else {
+      section.createDiv({ cls: "ticker-divider" });
+    }
   }
 
   private async renderStocksSection(section: HTMLElement) {
@@ -324,29 +328,31 @@ class MyPanelView extends ItemView {
       }
     });
 
-    section.createDiv({ cls: "ticker-divider" });
-    const stockFooter = section.createDiv({ cls: "ticker-footer" });
-    stockFooter.createSpan({
-      cls: "ticker-refresh-time",
-      text: formatLastRefreshed(lastRefreshedAt),
-    });
-    const refreshButton = stockFooter.createEl("button", {
-      cls: ["clickable-icon", "ticker-refresh-button"],
-      attr: {
-        "aria-label": "Refresh stock quotes",
-        type: "button",
-        title: "Refresh stock quotes",
-      },
-    });
-    setIcon(refreshButton, "refresh-cw");
-    refreshButton.addEventListener("click", async () => {
-      refreshButton.disabled = true;
-      try {
-        await this.plugin.refreshStocks();
-      } finally {
-        refreshButton.disabled = false;
-      }
-    });
+    if (this.plugin.settings.showStockFooter) {
+      section.createDiv({ cls: "ticker-divider" });
+      const stockFooter = section.createDiv({ cls: "ticker-footer" });
+      stockFooter.createSpan({
+        cls: "ticker-refresh-time",
+        text: formatLastRefreshed(lastRefreshedAt),
+      });
+      const refreshButton = stockFooter.createEl("button", {
+        cls: ["clickable-icon", "ticker-refresh-button"],
+        attr: {
+          "aria-label": "Refresh stock quotes",
+          type: "button",
+          title: "Refresh stock quotes",
+        },
+      });
+      setIcon(refreshButton, "refresh-cw");
+      refreshButton.addEventListener("click", async () => {
+        refreshButton.disabled = true;
+        try {
+          await this.plugin.refreshStocks();
+        } finally {
+          refreshButton.disabled = false;
+        }
+      });
+    }
 
     this.applyColorVars();
   }
@@ -724,6 +730,18 @@ export default class GlobalTicker extends Plugin {
 				const view = leaf.view;
 				if (view instanceof MyPanelView) {
 					await view.refreshStocks();
+				}
+			})
+		);
+	}
+
+	async refreshPanels() {
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_MY_PANEL);
+		await Promise.all(
+			leaves.map(async (leaf) => {
+				const view = leaf.view;
+				if (view instanceof MyPanelView) {
+					await view.refresh();
 				}
 			})
 		);

@@ -10,6 +10,8 @@ export interface GlobalTickerSettings {
 	stockTickerSpeed: TickerSpeed;
 	newsTickerDirection: TickerDirection;
 	stockTickerDirection: TickerDirection;
+	showNewsFooter: boolean;
+	showStockFooter: boolean;
 	tickerSpeed?: TickerSpeed;
 	stockChangeColor: string;
 	stockChangeNegativeColor: string;
@@ -31,6 +33,8 @@ export const DEFAULT_SETTINGS: GlobalTickerSettings = {
 	stockTickerSpeed: "slow",
 	newsTickerDirection: "left",
 	stockTickerDirection: "left",
+	showNewsFooter: true,
+	showStockFooter: true,
 	stockChangeColor: "",
 	stockChangeNegativeColor: "",
 	stockPriceColor: "",
@@ -316,6 +320,19 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
+			.setName("Show news footer")
+			.setDesc("Toggle the last refreshed info and refresh button for news.")
+			.addToggle(toggle => {
+				toggle
+					.setValue(this.plugin.settings.showNewsFooter)
+					.onChange(async (value) => {
+						this.plugin.settings.showNewsFooter = value;
+						await this.plugin.saveSettings();
+						await this.plugin.refreshPanels();
+					});
+			});
+
+		new Setting(containerEl)
 			.setName('Refresh headlines')
 			.setDesc('Fetch fresh headlines. The limit is 20 requests daily with the free API key.')
 			.addButton(button => {
@@ -409,7 +426,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					this.plugin.updateTickerColors();
 				}));
-				const settingStockDirectionSpeed = new Setting(containerEl)
+		const settingStockDirectionSpeed = new Setting(containerEl)
 		.setName("Stocks ticker speed and direction")
 		.setDesc("Choose how fast the stocks ticker scrolls and its direction.");
 
@@ -445,6 +462,19 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					this.plugin.updateTickerSettings();
 				}));
+
+		new Setting(containerEl)
+			.setName("Show stocks footer")
+			.setDesc("Toggle the last refreshed info and refresh button for stocks.")
+			.addToggle(toggle => {
+				toggle
+					.setValue(this.plugin.settings.showStockFooter)
+					.onChange(async (value) => {
+						this.plugin.settings.showStockFooter = value;
+						await this.plugin.saveSettings();
+						await this.plugin.refreshPanels();
+					});
+			});
 
 		
 		new Setting(containerEl)
