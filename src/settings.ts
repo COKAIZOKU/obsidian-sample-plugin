@@ -3,6 +3,7 @@ import GlobalTicker from "./main";
 
 export type TickerSpeed = "fast" | "slow" | "medium" | "very-slow";
 export type TickerDirection = "left" | "right";
+export type TickerDisplayMode = "both" | "news" | "stocks";
 
 export interface GlobalTickerSettings {
 	mySetting: string;
@@ -14,6 +15,7 @@ export interface GlobalTickerSettings {
 	showStockFooter: boolean;
 	useUsDateFormat: boolean;
 	refreshOnAppOpen: boolean;
+	tickerDisplayMode: TickerDisplayMode;
 	tickerSpeed?: TickerSpeed;
 	stockChangeColor: string;
 	stockChangeNegativeColor: string;
@@ -39,6 +41,7 @@ export const DEFAULT_SETTINGS: GlobalTickerSettings = {
 	showStockFooter: true,
 	useUsDateFormat: false,
 	refreshOnAppOpen: false,
+	tickerDisplayMode: "both",
 	stockChangeColor: "",
 	stockChangeNegativeColor: "",
 	stockPriceColor: "",
@@ -177,7 +180,27 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl('div', {text: 'Global Settings', cls: 'setting-item-name setting-section-header'});
-				new Setting(containerEl)
+
+		new Setting(containerEl)
+			.setName("Ticker display")
+			.setDesc("Choose which tickers to show in the panel.")
+			.addDropdown(dropdown => {
+				dropdown.addOption("both", "Both");
+				dropdown.addOption("news", "News only");
+				dropdown.addOption("stocks", "Stocks only");
+				dropdown
+					.setValue(this.plugin.settings.tickerDisplayMode)
+					.onChange(async (value) => {
+						if (value !== "both" && value !== "news" && value !== "stocks") {
+							return;
+						}
+						this.plugin.settings.tickerDisplayMode = value;
+						await this.plugin.saveSettings();
+						await this.plugin.refreshPanels();
+					});
+			});
+
+		new Setting(containerEl)
 			.setName("Date format")
 			.setDesc("Choose the date format used in the refresh footer.")
 			.addDropdown(dropdown => {

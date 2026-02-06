@@ -1,5 +1,12 @@
 import {App, Editor, MarkdownView, Modal, Notice, Plugin, ItemView, WorkspaceLeaf, setIcon} from 'obsidian';
-import {DEFAULT_SETTINGS, GlobalTickerSettings, GlobalTickerSettingTab, TickerDirection, TickerSpeed} from "./settings";
+import {
+  DEFAULT_SETTINGS,
+  GlobalTickerSettings,
+  GlobalTickerSettingTab,
+  TickerDirection,
+  TickerDisplayMode,
+  TickerSpeed,
+} from "./settings";
 import { applyTickerSpeed, initTicker } from "./ticker";
 import { fetchCurrentsHeadlines } from "./api/news";
 import { fetchFinnhubStockQuotes, normalizeStockSymbols, StockQuote } from "./api/stocks";
@@ -391,14 +398,35 @@ class MyPanelView extends ItemView {
   private async render() {
     const container = this.containerEl; // main content area
     container.empty();
-    this.newsSectionEl = container.createDiv({ cls: "news-section" });
-    this.newsFooterGroupEl = container.createDiv({ cls: "ticker-footer-group" });
-    this.stockSectionEl = container.createDiv({ cls: "stock-section" });
-    this.stockFooterGroupEl = container.createDiv({ cls: "ticker-footer-group" });
-    await this.renderNewsSection(this.newsSectionEl);
-    this.renderNewsFooter(this.newsFooterGroupEl);
-    const stockLastRefreshedAt = await this.renderStocksSection(this.stockSectionEl);
-    this.renderStockFooter(this.stockFooterGroupEl, stockLastRefreshedAt);
+    const displayMode: TickerDisplayMode =
+      this.plugin.settings.tickerDisplayMode ?? "both";
+    const showNews = displayMode !== "stocks";
+    const showStocks = displayMode !== "news";
+
+    this.newsSectionEl = showNews
+      ? container.createDiv({ cls: "news-section" })
+      : undefined;
+    this.newsFooterGroupEl = showNews
+      ? container.createDiv({ cls: "ticker-footer-group" })
+      : undefined;
+    this.stockSectionEl = showStocks
+      ? container.createDiv({ cls: "stock-section" })
+      : undefined;
+    this.stockFooterGroupEl = showStocks
+      ? container.createDiv({ cls: "ticker-footer-group" })
+      : undefined;
+
+    if (showNews && this.newsSectionEl && this.newsFooterGroupEl) {
+      await this.renderNewsSection(this.newsSectionEl);
+      this.renderNewsFooter(this.newsFooterGroupEl);
+    }
+
+    if (showStocks && this.stockSectionEl && this.stockFooterGroupEl) {
+      const stockLastRefreshedAt = await this.renderStocksSection(
+        this.stockSectionEl
+      );
+      this.renderStockFooter(this.stockFooterGroupEl, stockLastRefreshedAt);
+    }
     initTicker(container);
   }
 
@@ -411,6 +439,11 @@ class MyPanelView extends ItemView {
   }
 
   async refreshHeadlines() {
+    const displayMode: TickerDisplayMode =
+      this.plugin.settings.tickerDisplayMode ?? "both";
+    if (displayMode === "stocks") {
+      return;
+    }
     if (!this.newsSectionEl) {
       await this.render();
       return;
@@ -423,6 +456,11 @@ class MyPanelView extends ItemView {
   }
 
   async refreshStocks() {
+    const displayMode: TickerDisplayMode =
+      this.plugin.settings.tickerDisplayMode ?? "both";
+    if (displayMode === "news") {
+      return;
+    }
     if (!this.stockSectionEl) {
       await this.render();
       return;
