@@ -529,6 +529,11 @@ export default class GlobalTicker extends Plugin {
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 
+		this.app.workspace.onLayoutReady(() => {
+			if (this.settings.refreshOnAppOpen) {
+				void this.refreshOnAppOpen();
+			}
+		});
 	}
 
 	onunload() {
@@ -786,6 +791,22 @@ export default class GlobalTicker extends Plugin {
 				}
 			})
 		);
+	}
+
+	private async refreshOnAppOpen() {
+		try {
+			await this.getHeadlines({ forceRefresh: true, showNotice: false });
+		} catch (error) {
+			console.error("Failed to refresh headlines on app open", error);
+		}
+
+		try {
+			await this.getStockQuotes({ forceRefresh: true });
+		} catch (error) {
+			console.error("Failed to refresh stocks on app open", error);
+		}
+
+		await this.refreshPanels();
 	}
 
 	getHeadlinesLastRefreshedAt(): number | null {

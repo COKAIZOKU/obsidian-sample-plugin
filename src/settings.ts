@@ -13,6 +13,7 @@ export interface GlobalTickerSettings {
 	showNewsFooter: boolean;
 	showStockFooter: boolean;
 	useUsDateFormat: boolean;
+	refreshOnAppOpen: boolean;
 	tickerSpeed?: TickerSpeed;
 	stockChangeColor: string;
 	stockChangeNegativeColor: string;
@@ -37,6 +38,7 @@ export const DEFAULT_SETTINGS: GlobalTickerSettings = {
 	showNewsFooter: true,
 	showStockFooter: true,
 	useUsDateFormat: false,
+	refreshOnAppOpen: false,
 	stockChangeColor: "",
 	stockChangeNegativeColor: "",
 	stockPriceColor: "",
@@ -187,6 +189,18 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 						this.plugin.settings.useUsDateFormat = value === "mdy";
 						await this.plugin.saveSettings();
 						await this.plugin.refreshPanels();
+					});
+			});
+
+		new Setting(containerEl)
+			.setName("Refresh on app open")
+			.setDesc("Refresh headlines and stocks when Obsidian starts.")
+			.addToggle(toggle => {
+				toggle
+					.setValue(this.plugin.settings.refreshOnAppOpen)
+					.onChange(async (value) => {
+						this.plugin.settings.refreshOnAppOpen = value;
+						await this.plugin.saveSettings();
 					});
 			});
 			
