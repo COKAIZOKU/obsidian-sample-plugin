@@ -166,6 +166,14 @@
   flex: 0 0 auto;
 }
 
+.ticker-footer-group {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
 .ticker-refresh-time {
   font-variant-numeric: tabular-nums;
 }

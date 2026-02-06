@@ -136,6 +136,8 @@ class MyPanelView extends ItemView {
   private stockPriceColor: string;
   private newsSectionEl?: HTMLElement;
   private stockSectionEl?: HTMLElement;
+  private newsFooterGroupEl?: HTMLElement;
+  private stockFooterGroupEl?: HTMLElement;
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -271,39 +273,9 @@ class MyPanelView extends ItemView {
 
     const list = scroller.createEl("ul", { cls: ["tag-list", "scroller__inner"] });
     await this.loadHeadlines(list);
-
-    if (this.plugin.settings.showNewsFooter) {
-      section.createDiv({ cls: "ticker-divider" });
-      const newsFooter = section.createDiv({ cls: "ticker-footer" });
-      newsFooter.createSpan({
-        cls: "ticker-refresh-time",
-        text: formatLastRefreshed(this.plugin.getHeadlinesLastRefreshedAt()),
-      });
-      const refreshNewsButton = newsFooter.createEl("button", {
-        cls: ["clickable-icon", "ticker-refresh-button"],
-        attr: {
-          "aria-label": "Refresh headlines",
-          type: "button",
-          title: "Refresh headlines",
-        },
-      });
-      setIcon(refreshNewsButton, "refresh-cw");
-      refreshNewsButton.addEventListener("click", async () => {
-        refreshNewsButton.disabled = true;
-        try {
-          await this.plugin.refreshHeadlines();
-        } finally {
-          refreshNewsButton.disabled = false;
-        }
-      });
-
-      section.createDiv({ cls: "ticker-divider" });
-    } else {
-      section.createDiv({ cls: "ticker-divider" });
-    }
   }
 
-  private async renderStocksSection(section: HTMLElement) {
+  private async renderStocksSection(section: HTMLElement): Promise<number | null> {
     section.empty();
     const stockScroller = section.createDiv({ cls: "scroller" });
     stockScroller.setAttribute("data-ticker", "stock");
@@ -328,42 +300,87 @@ class MyPanelView extends ItemView {
       }
     });
 
-    if (this.plugin.settings.showStockFooter) {
-      section.createDiv({ cls: "ticker-divider" });
-      const stockFooter = section.createDiv({ cls: "ticker-footer" });
-      stockFooter.createSpan({
-        cls: "ticker-refresh-time",
-        text: formatLastRefreshed(lastRefreshedAt),
-      });
-      const refreshButton = stockFooter.createEl("button", {
-        cls: ["clickable-icon", "ticker-refresh-button"],
-        attr: {
-          "aria-label": "Refresh stock quotes",
-          type: "button",
-          title: "Refresh stock quotes",
-        },
-      });
-      setIcon(refreshButton, "refresh-cw");
-      refreshButton.addEventListener("click", async () => {
-        refreshButton.disabled = true;
-        try {
-          await this.plugin.refreshStocks();
-        } finally {
-          refreshButton.disabled = false;
-        }
-      });
+    this.applyColorVars();
+    return lastRefreshedAt;
+  }
+
+  private renderNewsFooter(group: HTMLElement) {
+    group.empty();
+    group.createDiv({ cls: "ticker-divider" });
+
+    if (!this.plugin.settings.showNewsFooter) {
+      return;
     }
 
-    this.applyColorVars();
+    const newsFooter = group.createDiv({ cls: "ticker-footer" });
+    newsFooter.createSpan({
+      cls: "ticker-refresh-time",
+      text: formatLastRefreshed(this.plugin.getHeadlinesLastRefreshedAt()),
+    });
+    const refreshNewsButton = newsFooter.createEl("button", {
+      cls: ["clickable-icon", "ticker-refresh-button"],
+      attr: {
+        "aria-label": "Refresh headlines",
+        type: "button",
+        title: "Refresh headlines",
+      },
+    });
+    setIcon(refreshNewsButton, "refresh-cw");
+    refreshNewsButton.addEventListener("click", async () => {
+      refreshNewsButton.disabled = true;
+      try {
+        await this.plugin.refreshHeadlines();
+      } finally {
+        refreshNewsButton.disabled = false;
+      }
+    });
+
+    group.createDiv({ cls: "ticker-divider" });
+  }
+
+  private renderStockFooter(group: HTMLElement, lastRefreshedAt: number | null) {
+    group.empty();
+
+    if (!this.plugin.settings.showStockFooter) {
+      return;
+    }
+
+    group.createDiv({ cls: "ticker-divider" });
+    const stockFooter = group.createDiv({ cls: "ticker-footer" });
+    stockFooter.createSpan({
+      cls: "ticker-refresh-time",
+      text: formatLastRefreshed(lastRefreshedAt),
+    });
+    const refreshButton = stockFooter.createEl("button", {
+      cls: ["clickable-icon", "ticker-refresh-button"],
+      attr: {
+        "aria-label": "Refresh stock quotes",
+        type: "button",
+        title: "Refresh stock quotes",
+      },
+    });
+    setIcon(refreshButton, "refresh-cw");
+    refreshButton.addEventListener("click", async () => {
+      refreshButton.disabled = true;
+      try {
+        await this.plugin.refreshStocks();
+      } finally {
+        refreshButton.disabled = false;
+      }
+    });
   }
 
   private async render() {
     const container = this.containerEl; // main content area
     container.empty();
     this.newsSectionEl = container.createDiv({ cls: "news-section" });
+    this.newsFooterGroupEl = container.createDiv({ cls: "ticker-footer-group" });
     this.stockSectionEl = container.createDiv({ cls: "stock-section" });
+    this.stockFooterGroupEl = container.createDiv({ cls: "ticker-footer-group" });
     await this.renderNewsSection(this.newsSectionEl);
-    await this.renderStocksSection(this.stockSectionEl);
+    this.renderNewsFooter(this.newsFooterGroupEl);
+    const stockLastRefreshedAt = await this.renderStocksSection(this.stockSectionEl);
+    this.renderStockFooter(this.stockFooterGroupEl, stockLastRefreshedAt);
     initTicker(container);
   }
 
@@ -381,6 +398,9 @@ class MyPanelView extends ItemView {
       return;
     }
     await this.renderNewsSection(this.newsSectionEl);
+    if (this.newsFooterGroupEl) {
+      this.renderNewsFooter(this.newsFooterGroupEl);
+    }
     initTicker(this.newsSectionEl);
   }
 
@@ -389,7 +409,10 @@ class MyPanelView extends ItemView {
       await this.render();
       return;
     }
-    await this.renderStocksSection(this.stockSectionEl);
+    const stockLastRefreshedAt = await this.renderStocksSection(this.stockSectionEl);
+    if (this.stockFooterGroupEl) {
+      this.renderStockFooter(this.stockFooterGroupEl, stockLastRefreshedAt);
+    }
     initTicker(this.stockSectionEl);
   }
 
