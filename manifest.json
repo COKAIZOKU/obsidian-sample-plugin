@@ -3,9 +3,9 @@
 	"name": "Global Ticker",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
+	"description": "This plugin provides a global ticker for news and stock updates.",
+	"author": "COKAIZOKU",
+	"authorUrl": "https://github.com/COKAIZOKU",
 	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+	"isDesktopOnly": true
 }
