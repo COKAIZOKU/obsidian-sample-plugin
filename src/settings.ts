@@ -1,4 +1,10 @@
-import {App, Notice, PluginSettingTab, SecretComponent, Setting} from "obsidian";
+import {
+    App,
+    Notice,
+    PluginSettingTab,
+    SecretComponent,
+    Setting,
+} from "obsidian";
 import GlobalTicker from "./main";
 
 export type TickerSpeed = "fast" | "slow" | "medium" | "very-slow";
@@ -57,6 +63,26 @@ export const DEFAULT_SETTINGS : GlobalTickerSettings = {
     currentsDomains: "",
     currentsExcludeDomains: ""
 }
+
+const createLinkFragment = (
+    leadingText: string,
+    linkText: string,
+    href: string,
+    trailingText: string
+): DocumentFragment => {
+    const fragment = document.createDocumentFragment();
+    if (leadingText) {
+        fragment.append(document.createTextNode(leadingText));
+    }
+    const link = document.createElement("a");
+    link.textContent = linkText;
+    link.href = href;
+    fragment.append(link);
+    if (trailingText) {
+        fragment.append(document.createTextNode(trailingText));
+    }
+    return fragment;
+};
 
 const CURRENTS_REGIONS : Array < [string, string] > = [
     [
@@ -388,7 +414,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 		// Global Settings Section
 
         containerEl.createEl('div', {
-            text: 'Global Settings',
+            text: 'Global settings',
             cls: 'setting-item-name setting-section-header'
         });
 
@@ -401,17 +427,19 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
                 dropdown.addOption("stocks", "Stocks only");
                 dropdown
                     .setValue(this.plugin.settings.tickerDisplayMode)
-                    .onChange(async(value) => {
-                        if (value !== "both" && value !== "news" && value !== "stocks") {
-                            return;
-                        }
-                        this.plugin.settings.tickerDisplayMode = value;
-                        await this
-                            .plugin
-                            .saveSettings();
-                        await this
-                            .plugin
-                            .refreshPanels();
+                    .onChange((value) => {
+                        void (async() => {
+                            if (value !== "both" && value !== "news" && value !== "stocks") {
+                                return;
+                            }
+                            this.plugin.settings.tickerDisplayMode = value;
+                            await this
+                                .plugin
+                                .saveSettings();
+                            await this
+                                .plugin
+                                .refreshPanels();
+                        })();
                     });
             });
 
@@ -419,20 +447,24 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
             .setName("Date format")
             .setDesc("Choose the date format used in the refresh footer.")
             .addDropdown(dropdown => {
-                dropdown.addOption("dmy", "DD/MM/YY");
-                dropdown.addOption("mdy", "MM/DD/YY");
+                // eslint-disable-next-line obsidianmd/ui/sentence-case
+                dropdown.addOption("dmy", "dd/mm/yy");
+                // eslint-disable-next-line obsidianmd/ui/sentence-case
+                dropdown.addOption("mdy", "mm/dd/yy");
                 dropdown
                     .setValue(this.plugin.settings.useUsDateFormat
                     ? "mdy"
                     : "dmy")
-                    .onChange(async(value) => {
-                        this.plugin.settings.useUsDateFormat = value === "mdy";
-                        await this
-                            .plugin
-                            .saveSettings();
-                        await this
-                            .plugin
-                            .refreshPanels();
+                    .onChange((value) => {
+                        void (async() => {
+                            this.plugin.settings.useUsDateFormat = value === "mdy";
+                            await this
+                                .plugin
+                                .saveSettings();
+                            await this
+                                .plugin
+                                .refreshPanels();
+                        })();
                     });
             });
 
@@ -442,88 +474,95 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
             .addToggle(toggle => {
                 toggle
                     .setValue(this.plugin.settings.refreshOnAppOpen)
-                    .onChange(async(value) => {
-                        this.plugin.settings.refreshOnAppOpen = value;
-                        await this
-                            .plugin
-                            .saveSettings();
+                    .onChange((value) => {
+                        void (async() => {
+                            this.plugin.settings.refreshOnAppOpen = value;
+                            await this
+                                .plugin
+                                .saveSettings();
+                        })();
                     });
             });
 
 		// News Settings Section
 
         containerEl.createEl('div', {
-            text: 'News Settings',
+            text: 'News settings',
             cls: 'setting-item-name setting-section-header setting-section-header-margin-top'
         });
 
-        const descCurrentsKey = createFragment();
-        descCurrentsKey.appendText('Used to fetch live headlines. Get a free Currents API key by creating an account ');
-        descCurrentsKey.appendChild(createEl('a', {
-            text: 'here',
-            href: 'https://currentsapi.services/'
-        }));
-        descCurrentsKey.appendText('.');
+        const descCurrentsKey = createLinkFragment(
+            "Used to fetch live headlines. Get a free Currents API key by creating an account ",
+            "here",
+            "https://currentsapi.services/",
+            "."
+        );
 
         new Setting(containerEl)
             .setName('Currents API key')
             .setDesc(descCurrentsKey)
             .addComponent(el => new SecretComponent(this.app, el)
                 .setValue(this.plugin.settings.currentsApiKey)
-                .onChange(async(value) => {
-                    const normalized = (value ?? "").trim();
-                    this.plugin.settings.currentsApiKey = normalized;
-                    await this
-                        .plugin
-                        .saveSettings();
+                .onChange((value) => {
+                    void (async() => {
+                        const normalized = (value ?? "").trim();
+                        this.plugin.settings.currentsApiKey = normalized;
+                        await this
+                            .plugin
+                            .saveSettings();
+                    })();
                 }));
 
-        const descCategory = createFragment();
-        descCategory.appendText('By default all categories are included. Some supported categories are: regional,' +
-                ' business, science, sports, technology, general, entertainment, food, lifestyle,' +
-                ' programming, world, health. For all categories available, visit the ');
-        descCategory.appendChild(createEl('a', {
-            text: 'documentation',
-            href: 'https://api.currentsapi.services/v1/available/categories'
-        }));
-        descCategory.appendText('.');
+        const descCategory = createLinkFragment(
+            "By default all categories are included. Some supported categories are: regional, business, science, sports, technology, general, entertainment, food, lifestyle, programming, world, health. For all categories available, visit the ",
+            "documentation",
+            "https://api.currentsapi.services/v1/available/categories",
+            "."
+        );
 
         new Setting(containerEl)
             .setName('Categories')
             .setDesc(descCategory)
-            .addTextArea(text => text.setPlaceholder('e.g. science, food').setValue(this.plugin.settings.currentsCategory).onChange(async(value) => {
-                this.plugin.settings.currentsCategory = value.trim();
-                await this
-                    .plugin
-                    .saveSettings();
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
+            .addTextArea(text => text.setPlaceholder('e.g. science, food').setValue(this.plugin.settings.currentsCategory).onChange((value) => {
+                void (async() => {
+                    this.plugin.settings.currentsCategory = value.trim();
+                    await this
+                        .plugin
+                        .saveSettings();
+                })();
             }));
-        const descDomains = createFragment();
-        descDomains.appendText('Filter headlines by source domains. To see if a domain is supported, search for ' +
-                'it ');
-        descDomains.appendChild(createEl('a', {
-            text: 'here',
-            href: 'https://www.currentsapi.services/en/statistic/'
-        }));
-        descDomains.appendText('. ');
+        const descDomains = createLinkFragment(
+            "Filter headlines by source domains. To see if a domain is supported, search for it ",
+            "here",
+            "https://www.currentsapi.services/en/statistic/",
+            ". "
+        );
 
         new Setting(containerEl)
             .setName('Domains')
             .setDesc(descDomains)
-            .addTextArea(text => text.setPlaceholder('e.g. bbc.com, nytimes.com').setValue(this.plugin.settings.currentsDomains).onChange(async(value) => {
-                this.plugin.settings.currentsDomains = value.trim();
-                await this
-                    .plugin
-                    .saveSettings();
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
+            .addTextArea(text => text.setPlaceholder('e.g. bbc.com, nytimes.com').setValue(this.plugin.settings.currentsDomains).onChange((value) => {
+                void (async() => {
+                    this.plugin.settings.currentsDomains = value.trim();
+                    await this
+                        .plugin
+                        .saveSettings();
+                })();
             }));
 
         new Setting(containerEl)
             .setName('Exclude domains')
             .setDesc('Exclude headlines from specific domains. If a domain appears in both the included and excluded domains, it will be excluded.')
-            .addTextArea(text => text.setPlaceholder('e.g. bbc.com, nytimes.com').setValue(this.plugin.settings.currentsExcludeDomains).onChange(async(value) => {
-                this.plugin.settings.currentsExcludeDomains = value.trim();
-                await this
-                    .plugin
-                    .saveSettings();
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
+            .addTextArea(text => text.setPlaceholder('e.g. bbc.com, nytimes.com').setValue(this.plugin.settings.currentsExcludeDomains).onChange((value) => {
+                void (async() => {
+                    this.plugin.settings.currentsExcludeDomains = value.trim();
+                    await this
+                        .plugin
+                        .saveSettings();
+                })();
             }));
 
         new Setting(containerEl)
@@ -535,11 +574,13 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
                 });
                 dropdown
                     .setValue(this.plugin.settings.currentsRegion)
-                    .onChange(async(value) => {
-                        this.plugin.settings.currentsRegion = value;
-                        await this
-                            .plugin
-                            .saveSettings();
+                    .onChange((value) => {
+                        void (async() => {
+                            this.plugin.settings.currentsRegion = value;
+                            await this
+                                .plugin
+                                .saveSettings();
+                        })();
                     });
             });
 
@@ -552,11 +593,13 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
                 });
                 dropdown
                     .setValue(this.plugin.settings.currentsLanguage)
-                    .onChange(async(value) => {
-                        this.plugin.settings.currentsLanguage = value;
-                        await this
-                            .plugin
-                            .saveSettings();
+                    .onChange((value) => {
+                        void (async() => {
+                            this.plugin.settings.currentsLanguage = value;
+                            await this
+                                .plugin
+                                .saveSettings();
+                        })();
                     });
             });
 
@@ -571,62 +614,70 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
                 text
                     .setPlaceholder('5')
                     .setValue(String(this.plugin.settings.currentsLimit))
-                    .onChange(async(value) => {
-                        const parsed = Number.parseInt(value, 10);
-                        if (Number.isNaN(parsed)) {
-                            return;
-                        }
-                        const clamped = Math.min(10, Math.max(1, parsed));
-                        this.plugin.settings.currentsLimit = clamped;
-                        text.setValue(String(clamped));
-                        await this
-                            .plugin
-                            .saveSettings();
+                    .onChange((value) => {
+                        void (async() => {
+                            const parsed = Number.parseInt(value, 10);
+                            if (Number.isNaN(parsed)) {
+                                return;
+                            }
+                            const clamped = Math.min(10, Math.max(1, parsed));
+                            this.plugin.settings.currentsLimit = clamped;
+                            text.setValue(String(clamped));
+                            await this
+                                .plugin
+                                .saveSettings();
+                        })();
                     });
             });
 
         const settingNewsDirectionSpeed = new Setting(containerEl)
             .setName("News ticker speed and direction")
             .setDesc("Choose how fast the news ticker scrolls and its direction.");
-
-        settingNewsDirectionSpeed.addDropdown(dropdown => dropdown.addOption("very-slow", "Very Slow").addOption("slow", "Slow").addOption("medium", "Medium").addOption("fast", "Fast").setValue(this.plugin.settings.newsTickerSpeed).onChange(async(value) => {
+        settingNewsDirectionSpeed.addDropdown(dropdown => dropdown.addOption("very-slow", "Very slow").addOption("slow", "Slow").addOption("medium", "Medium").addOption("fast", "Fast").setValue(this.plugin.settings.newsTickerSpeed).onChange((value) => {
             if (value !== "very-slow" && value !== "slow" && value !== "fast" && value !== "medium") {
                 return;
             }
-            this.plugin.settings.newsTickerSpeed = value;
-            await this
-                .plugin
-                .saveSettings();
-            this
-                .plugin
-                .updateTickerSettings();
-        })).addDropdown(dropdown => dropdown.addOption("left", "Left").addOption("right", "Right").setValue(this.plugin.settings.newsTickerDirection).onChange(async(value) => {
+            void (async() => {
+                this.plugin.settings.newsTickerSpeed = value;
+                await this
+                    .plugin
+                    .saveSettings();
+                this
+                    .plugin
+                    .updateTickerSettings();
+            })();
+        })).addDropdown(dropdown => dropdown.addOption("left", "Left").addOption("right", "Right").setValue(this.plugin.settings.newsTickerDirection).onChange((value) => {
             if (value !== "left" && value !== "right") {
                 return;
             }
-            this.plugin.settings.newsTickerDirection = value;
-            await this
-                .plugin
-                .saveSettings();
-            this
-                .plugin
-                .updateTickerSettings();
+            void (async() => {
+                this.plugin.settings.newsTickerDirection = value;
+                await this
+                    .plugin
+                    .saveSettings();
+                this
+                    .plugin
+                    .updateTickerSettings();
+            })();
         }));
 
         new Setting(containerEl)
             .setName("Show news footer")
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
             .setDesc("Toggle the last refreshed info and refresh button for news. Beware of the daily limit of 20 requests with the free Currents API key.")
             .addToggle(toggle => {
                 toggle
                     .setValue(this.plugin.settings.showNewsFooter)
-                    .onChange(async(value) => {
-                        this.plugin.settings.showNewsFooter = value;
-                        await this
-                            .plugin
-                            .saveSettings();
-                        await this
-                            .plugin
-                            .refreshPanels();
+                    .onChange((value) => {
+                        void (async() => {
+                            this.plugin.settings.showNewsFooter = value;
+                            await this
+                                .plugin
+                                .saveSettings();
+                            await this
+                                .plugin
+                                .refreshPanels();
+                        })();
                     });
             });
         new Setting(containerEl)
@@ -635,14 +686,16 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
             .addToggle(toggle => {
                 toggle
                     .setValue(this.plugin.settings.showHeadlineMeta)
-                    .onChange(async(value) => {
-                        this.plugin.settings.showHeadlineMeta = value;
-                        await this
-                            .plugin
-                            .saveSettings();
-                        await this
-                            .plugin
-                            .refreshPanels();
+                    .onChange((value) => {
+                        void (async() => {
+                            this.plugin.settings.showHeadlineMeta = value;
+                            await this
+                                .plugin
+                                .saveSettings();
+                            await this
+                                .plugin
+                                .refreshPanels();
+                        })();
                     });
             });
 
@@ -653,140 +706,157 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
                 button
                     .setButtonText('Refresh')
                     .setCta()
-                    .onClick(async() => {
-                        button.setDisabled(true);
-                        button.setButtonText("Refreshing...");
-                        try {
-                            const refreshed = await this
-                                .plugin
-                                .refreshHeadlines();
-                            if (refreshed) {
-                                new Notice("Headlines refreshed.");
-                            } else {
-                                new Notice("No headlines refreshed. Check your API key, limit or connection.");
+                    .onClick(() => {
+                        void (async() => {
+                            button.setDisabled(true);
+                            button.setButtonText("Refreshing...");
+                            try {
+                                const refreshed = await this
+                                    .plugin
+                                    .refreshHeadlines();
+                                if (refreshed) {
+                                    new Notice("Headlines refreshed.");
+                                } else {
+                                    new Notice("No headlines refreshed. Check your API key, limit or connection.");
+                                }
+                            } catch (error) {
+                                console.error("Failed to refresh headlines", error);
+                                new Notice("Failed to refresh headlines. Check your API key, limit or connection.");
+                            } finally {
+                                button.setDisabled(false);
+                                button.setButtonText("Refresh");
                             }
-                        } catch (error) {
-                            console.error("Failed to refresh headlines", error);
-                            new Notice("Failed to refresh headlines. Check your API key, limit or connection.");
-                        } finally {
-                            button.setDisabled(false);
-                            button.setButtonText("Refresh");
-                        }
+                        })();
                     });
             });
 
 		// Stocks Settings Section
 
         containerEl.createEl('div', {
-            text: 'Stocks Settings',
+            text: 'Stocks settings',
             cls: 'setting-item-name setting-section-header setting-section-header-margin-top'
         });
 
-        const descFinnhubKey = createFragment();
-        descFinnhubKey.appendText('Used to fetch stocks data. Get a free Finnhub API key by creating an account ');
-        descFinnhubKey.appendChild(createEl('a', {
-            text: 'here',
-            href: 'https://finnhub.io'
-        }));
-        descFinnhubKey.appendText('.');
+        const descFinnhubKey = createLinkFragment(
+            "Used to fetch stocks data. Get a free Finnhub API key by creating an account ",
+            "here",
+            "https://finnhub.io",
+            "."
+        );
 
         new Setting(containerEl)
             .setName('Finnhub API key')
             .setDesc(descFinnhubKey)
             .addComponent(el => new SecretComponent(this.app, el)
                 .setValue(this.plugin.settings.finnhubApiKey)
-                .onChange(async(value) => {
-                    const normalized = (value ?? "").trim();
-                    this.plugin.settings.finnhubApiKey = normalized;
-                    await this
-                        .plugin
-                        .saveSettings();
+                .onChange((value) => {
+                    void (async() => {
+                        const normalized = (value ?? "").trim();
+                        this.plugin.settings.finnhubApiKey = normalized;
+                        await this
+                            .plugin
+                            .saveSettings();
+                    })();
                 }));
 
-        const descStockSymbols = createFragment();
-        descStockSymbols.appendText('Comma-separated list of stocks ticker symbols to display.');
+        const descStockSymbols = "Comma-separated list of stocks ticker symbols to display.";
         new Setting(containerEl)
             .setName('Stocks symbols')
             .setDesc(descStockSymbols)
-            .addTextArea(text => text.setPlaceholder('e.g. AAPL, MSFT, TSLA').setValue(this.plugin.settings.finnhubSymbols).onChange(async(value) => {
-                this.plugin.settings.finnhubSymbols = value;
-                await this
-                    .plugin
-                    .saveSettings();
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
+            .addTextArea(text => text.setPlaceholder('e.g. AAPL, MSFT, TSLA').setValue(this.plugin.settings.finnhubSymbols).onChange((value) => {
+                void (async() => {
+                    this.plugin.settings.finnhubSymbols = value;
+                    await this
+                        .plugin
+                        .saveSettings();
+                })();
             }));
 
-        const descHexColors = createFragment();
-        descHexColors.appendText('Use any hex color, you can find hex colors ');
-        descHexColors.appendChild(createEl('a', {
-            text: 'here',
-            href: 'https://htmlcolorcodes.com/'
-        }));
-        descHexColors.appendText('. Leave blank to use the theme default.');
+        const descHexColors = createLinkFragment(
+            "Use any hex color, you can find hex colors ",
+            "here",
+            "https://htmlcolorcodes.com/",
+            ". Leave blank to use the theme default."
+        );
 
         new Setting(containerEl)
             .setName('Stocks positive change color')
             .setDesc(descHexColors)
-            .addText(text => text.setPlaceholder('e.g. #a68af6').setValue(this.plugin.settings.stockChangeColor).onChange(async(value) => {
-                this.plugin.settings.stockChangeColor = value.trim();
-                await this
-                    .plugin
-                    .saveSettings();
-                this
-                    .plugin
-                    .updateTickerColors();
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
+            .addText(text => text.setPlaceholder('e.g. #a68af6').setValue(this.plugin.settings.stockChangeColor).onChange((value) => {
+                void (async() => {
+                    this.plugin.settings.stockChangeColor = value.trim();
+                    await this
+                        .plugin
+                        .saveSettings();
+                    this
+                        .plugin
+                        .updateTickerColors();
+                })();
             }));
 
         new Setting(containerEl)
             .setName('Stocks negative change color')
             .setDesc('Use any hex color. Leave blank to use the theme default.')
-            .addText(text => text.setPlaceholder('e.g. #fb464c').setValue(this.plugin.settings.stockChangeNegativeColor).onChange(async(value) => {
-                this.plugin.settings.stockChangeNegativeColor = value.trim();
-                await this
-                    .plugin
-                    .saveSettings();
-                this
-                    .plugin
-                    .updateTickerColors();
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
+            .addText(text => text.setPlaceholder('e.g. #fb464c').setValue(this.plugin.settings.stockChangeNegativeColor).onChange((value) => {
+                void (async() => {
+                    this.plugin.settings.stockChangeNegativeColor = value.trim();
+                    await this
+                        .plugin
+                        .saveSettings();
+                    this
+                        .plugin
+                        .updateTickerColors();
+                })();
             }));
 
         new Setting(containerEl)
             .setName('Stocks price color')
             .setDesc('Use any hex color. Leave blank to use the theme default.')
-            .addText(text => text.setPlaceholder('e.g. #666666').setValue(this.plugin.settings.stockPriceColor).onChange(async(value) => {
-                this.plugin.settings.stockPriceColor = value.trim();
-                await this
-                    .plugin
-                    .saveSettings();
-                this
-                    .plugin
-                    .updateTickerColors();
+            // eslint-disable-next-line obsidianmd/ui/sentence-case
+            .addText(text => text.setPlaceholder('e.g. #666666').setValue(this.plugin.settings.stockPriceColor).onChange((value) => {
+                void (async() => {
+                    this.plugin.settings.stockPriceColor = value.trim();
+                    await this
+                        .plugin
+                        .saveSettings();
+                    this
+                        .plugin
+                        .updateTickerColors();
+                })();
             }));
         const settingStockDirectionSpeed = new Setting(containerEl)
             .setName("Stocks ticker speed and direction")
             .setDesc("Choose how fast the stocks ticker scrolls and its direction.");
 
-        settingStockDirectionSpeed.addDropdown(dropdown => dropdown.addOption("very-slow", "Very Slow").addOption("slow", "Slow").addOption("medium", "Medium").addOption("fast", "Fast").setValue(this.plugin.settings.stockTickerSpeed).onChange(async(value) => {
+        settingStockDirectionSpeed.addDropdown(dropdown => dropdown.addOption("very-slow", "Very slow").addOption("slow", "Slow").addOption("medium", "Medium").addOption("fast", "Fast").setValue(this.plugin.settings.stockTickerSpeed).onChange((value) => {
             if (value !== "very-slow" && value !== "slow" && value !== "fast" && value !== "medium") {
                 return;
             }
-            this.plugin.settings.stockTickerSpeed = value;
-            await this
-                .plugin
-                .saveSettings();
-            this
-                .plugin
-                .updateTickerSettings();
-        })).addDropdown(dropdown => dropdown.addOption("left", "Left").addOption("right", "Right").setValue(this.plugin.settings.stockTickerDirection).onChange(async(value) => {
+            void (async() => {
+                this.plugin.settings.stockTickerSpeed = value;
+                await this
+                    .plugin
+                    .saveSettings();
+                this
+                    .plugin
+                    .updateTickerSettings();
+            })();
+        })).addDropdown(dropdown => dropdown.addOption("left", "Left").addOption("right", "Right").setValue(this.plugin.settings.stockTickerDirection).onChange((value) => {
             if (value !== "left" && value !== "right") {
                 return;
             }
-            this.plugin.settings.stockTickerDirection = value;
-            await this
-                .plugin
-                .saveSettings();
-            this
-                .plugin
-                .updateTickerSettings();
+            void (async() => {
+                this.plugin.settings.stockTickerDirection = value;
+                await this
+                    .plugin
+                    .saveSettings();
+                this
+                    .plugin
+                    .updateTickerSettings();
+            })();
         }));
 
         new Setting(containerEl)
@@ -795,14 +865,16 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
             .addToggle(toggle => {
                 toggle
                     .setValue(this.plugin.settings.showStockFooter)
-                    .onChange(async(value) => {
-                        this.plugin.settings.showStockFooter = value;
-                        await this
-                            .plugin
-                            .saveSettings();
-                        await this
-                            .plugin
-                            .refreshPanels();
+                    .onChange((value) => {
+                        void (async() => {
+                            this.plugin.settings.showStockFooter = value;
+                            await this
+                                .plugin
+                                .saveSettings();
+                            await this
+                                .plugin
+                                .refreshPanels();
+                        })();
                     });
             });
 
@@ -813,26 +885,32 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
                 button
                     .setButtonText('Refresh')
                     .setCta()
-                    .onClick(async() => {
-                        button.setDisabled(true);
-                        button.setButtonText("Refreshing...");
-                        try {
-                            const refreshed = await this
-                                .plugin
-                                .refreshStocks();
-                            if (refreshed) {
-                                new Notice("Stocks data refreshed.");
-                            } else {
-                                new Notice("No stocks data refreshed. Check your Finnhub API key, limit or connection.");
+                    .onClick(() => {
+                        void (async() => {
+                            button.setDisabled(true);
+                            button.setButtonText("Refreshing...");
+                            try {
+                                const refreshed = await this
+                                    .plugin
+                                    .refreshStocks();
+                                if (refreshed) {
+                                    new Notice("Stocks data refreshed.");
+                                } else {
+                                    new Notice("No stocks data refreshed. Check your API key, limit or connection.");
+                                }
+                            } catch (error) {
+                                console.error("Failed to refresh stocks data", error);
+                                new Notice("Failed to refresh stocks data. Check your API key, limit or connection.");
+                            } finally {
+                                button.setDisabled(false);
+                                button.setButtonText("Refresh");
                             }
-                        } catch (error) {
-                            console.error("Failed to refresh stocks data", error);
-                            new Notice("Failed to refresh stocks data. Check your Finnhub API key, limit or connection.");
-                        } finally {
-                            button.setDisabled(false);
-                            button.setButtonText("Refresh");
-                        }
+                        })();
                     });
             });
     }
 }
+
+// Some ESLint rules are disabled because it's pointing at my texts that are separated to give it a link
+// also not sure if its necessary that the text placeholder for the text box is needed, is just based off 
+// the example that is already in Obsidian, which is '.obsidian' on the Files and links settings
