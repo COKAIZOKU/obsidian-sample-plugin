@@ -103,6 +103,9 @@ export async function fetchFinnhubStockQuotes(
     return [];
   }
 
+  const isErrorPayload = (value: unknown): value is FinnhubErrorResponse =>
+    Boolean(value && typeof value === "object" && "error" in value);
+
   const requestQuote = async (symbol: string): Promise<StockQuote> => {
     const url = buildQuoteUrl(symbol, apiKey);
     const response = await requestUrl({
@@ -110,31 +113,27 @@ export async function fetchFinnhubStockQuotes(
       throw: false,
     });
 
-    const payload = response.json as FinnhubQuoteResponse | FinnhubErrorResponse | unknown;
+    const payload = response.json as unknown;
     if (response.status >= 400) {
       const details =
-        payload && typeof payload === "object" && "error" in payload
-          ? `: ${String((payload as FinnhubErrorResponse).error)}`
+        isErrorPayload(payload) && payload.error
+          ? `: ${String(payload.error)}`
           : "";
       throw new Error(
         `Finnhub API request failed (${response.status})${details}`
       );
     }
 
-    if (
-      payload &&
-      typeof payload === "object" &&
-      "error" in payload &&
-      (payload as FinnhubErrorResponse).error
-    ) {
+    if (isErrorPayload(payload) && payload.error) {
       throw new Error(
-        `Finnhub API error: ${String(
-          (payload as FinnhubErrorResponse).error
-        )}`
+        `Finnhub API error: ${String(payload.error)}`
       );
     }
 
-    return toStockQuoteFromQuote(symbol, payload as FinnhubQuoteResponse);
+    return toStockQuoteFromQuote(
+      symbol,
+      isErrorPayload(payload) ? undefined : (payload as FinnhubQuoteResponse)
+    );
   };
 
   const results = await Promise.allSettled(

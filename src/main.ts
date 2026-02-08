@@ -371,7 +371,7 @@ class MyPanelView extends ItemView {
 
   // Title that appears on the panel
   getDisplayText() {
-    return "Global Ticker";
+    return "Global ticker";
   }
 
   // Render the news ticker section
