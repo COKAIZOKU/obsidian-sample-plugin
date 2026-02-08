@@ -3,9 +3,8 @@
 	"name": "Global Ticker",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "This plugin provides a global ticker for news and stock updates.",
+	"description": "Adds a panel that provides a global ticker for news and stock updates, using API data.",
 	"author": "COKAIZOKU",
 	"authorUrl": "https://github.com/COKAIZOKU",
-	"fundingUrl": "https://obsidian.md/pricing",
 	"isDesktopOnly": true
 }
