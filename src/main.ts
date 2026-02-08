@@ -193,6 +193,39 @@ const toStockDisplayItem = (quote: StockQuote): {
   isNegative: (quote.changePercent ?? 0) < 0,
 });
 
+const normalizeStockQuoteNumber = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+
+const normalizeStockQuoteItem = (item: unknown): StockQuote | null => {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+  const record = item as {
+    symbol?: unknown;
+    price?: unknown;
+    changePercent?: unknown;
+  };
+  const symbol = typeof record.symbol === "string" ? record.symbol.trim() : "";
+  if (!symbol) {
+    return null;
+  }
+  const price = normalizeStockQuoteNumber(record.price);
+  const changePercent = normalizeStockQuoteNumber(record.changePercent);
+  return {
+    symbol,
+    ...(price !== undefined ? { price } : {}),
+    ...(changePercent !== undefined ? { changePercent } : {}),
+  };
+};
+
 // Cache for headlines
 interface HeadlinesCache {
   cacheKey: string;
@@ -200,10 +233,17 @@ interface HeadlinesCache {
   headlines: HeadlineItem[];
 }
 
+interface StockQuotesCache {
+	cacheKey: string;
+	fetchedAt: number;
+	quotes: StockQuote[];
+}
+
 // Data structure for plugin storage, currently stores settings and headlines cache
 interface PluginData {
   settings?: Partial<GlobalTickerSettings>;
   headlinesCache?: HeadlinesCache | null;
+  stockQuotesCache?: StockQuotesCache | null;
 }
 
 // The main view class for the panel
@@ -584,7 +624,7 @@ export default class GlobalTicker extends Plugin {
 
 	settings: GlobalTickerSettings;
 	private headlinesCache: HeadlinesCache | null = null; 
-	private stockQuotesCache: { cacheKey: string; fetchedAt: number; quotes: StockQuote[] } | null = null;
+	private stockQuotesCache: StockQuotesCache | null = null;
   private missingSecretNotices = new Set<string>(); 
 
 	async onload() {
@@ -825,6 +865,7 @@ export default class GlobalTicker extends Plugin {
 		await this.saveData({
 			settings: this.settings,
 			headlinesCache: this.headlinesCache,
+			stockQuotesCache: this.stockQuotesCache,
 		});
 	}
 
@@ -954,21 +995,25 @@ export default class GlobalTicker extends Plugin {
 			return [];
 		}
 
-		const apiKey = await this.getFinnhubApiKey();
-		if (!apiKey) {
-      this.notifyMissingSecret("Finnhub", this.settings.finnhubApiKey);
-			return [];
-		}
-
 		const cacheKey = this.buildStockCacheKey(symbols);
 		const cache = this.stockQuotesCache;
 		const cacheMatches = cache?.cacheKey === cacheKey;
 		const cacheAge = cache ? Date.now() - cache.fetchedAt : Number.POSITIVE_INFINITY;
 		const cacheFresh = cacheMatches && cacheAge < STOCK_CACHE_TTL_MS;
 		const forceRefresh = options?.forceRefresh ?? false;
+		const cacheUsable = cacheFresh && Boolean(cache?.quotes.length);
 
-		if (!forceRefresh && cacheFresh && cache?.quotes.length) {
+		if (!forceRefresh && cacheUsable && cache?.quotes.length) {
 			return cache.quotes.slice(0, symbols.length);
+		}
+
+		const apiKey = await this.getFinnhubApiKey();
+		if (!apiKey) {
+      this.notifyMissingSecret("Finnhub", this.settings.finnhubApiKey);
+			if (cacheMatches && cache?.quotes.length) {
+				return cache.quotes.slice(0, symbols.length);
+			}
+			return [];
 		}
 
 		try {
@@ -979,6 +1024,7 @@ export default class GlobalTicker extends Plugin {
 					fetchedAt: Date.now(),
 					quotes,
 				};
+				await this.savePluginData();
 				return quotes.slice(0, symbols.length);
 			}
 		} catch (error) {
@@ -994,7 +1040,6 @@ export default class GlobalTicker extends Plugin {
 
   // Refresh stocks section, clears cache and re-fetches data, then updates all open panels
 	async refreshStocks() {
-		this.stockQuotesCache = null;
     const symbols = normalizeStockSymbols(this.settings.finnhubSymbols);
     if (symbols.length === 0) {
       return false;
@@ -1010,6 +1055,7 @@ export default class GlobalTicker extends Plugin {
           fetchedAt: Date.now(),
           quotes,
         };
+        await this.savePluginData();
         refreshed = true;
       }
     } catch (error) {
@@ -1121,6 +1167,18 @@ export default class GlobalTicker extends Plugin {
           headlines: normalized,
         };
       }
+			this.stockQuotesCache = typedData.stockQuotesCache ?? null;
+			if (this.stockQuotesCache && Array.isArray(this.stockQuotesCache.quotes)) {
+				const normalizedQuotes = this.stockQuotesCache.quotes
+					.map((item) => normalizeStockQuoteItem(item))
+					.filter((item): item is StockQuote => Boolean(item));
+				const { cacheKey, fetchedAt } = this.stockQuotesCache;
+				this.stockQuotesCache = {
+					cacheKey,
+					fetchedAt,
+					quotes: normalizedQuotes,
+				};
+			}
 			return;
 		}
     
@@ -1128,6 +1186,7 @@ export default class GlobalTicker extends Plugin {
 		const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, rawSettings);
 		this.settings = mergedSettings;
 		this.headlinesCache = null;
+		this.stockQuotesCache = null;
 	}
 
 	async saveSettings() {
