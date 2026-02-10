@@ -11,10 +11,6 @@ export type TickerSpeed = "fast" | "slow" | "medium" | "very-slow";
 export type TickerDirection = "left" | "right";
 export type TickerDisplayMode = "both" | "news" | "stocks";
 
-// Some of my texts that are separated to give it a link are being given an ESlint error because of the upper case
-// Also not sure if its necessary that the text placeholder for the text box is needed, is just based off 
-// The example that is already in Obsidian, which is '.obsidian' on the Files and links settings
-
 export interface GlobalTickerSettings {
     mySetting : string;
     newsTickerSpeed : TickerSpeed;
@@ -451,8 +447,8 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
             .setName("Date format")
             .setDesc("Choose the date format used in the refresh footer.")
             .addDropdown(dropdown => {
-                dropdown.addOption("dmy", "dd/mm/yy");
-                dropdown.addOption("mdy", "mm/dd/yy");
+                dropdown.addOption("dmy", "Day/month/year");
+                dropdown.addOption("mdy", "Month/day/year");
                 dropdown
                     .setValue(this.plugin.settings.useUsDateFormat
                     ? "mdy"
@@ -525,7 +521,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Categories')
             .setDesc(descCategory)
-            .addTextArea(text => text.setPlaceholder('e.g. science, food').setValue(this.plugin.settings.currentsCategory).onChange((value) => {
+            .addTextArea(text => text.setPlaceholder('Science, food').setValue(this.plugin.settings.currentsCategory).onChange((value) => {
                 void (async() => {
                     this.plugin.settings.currentsCategory = value.trim();
                     await this
@@ -543,7 +539,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Domains')
             .setDesc(descDomains)
-            .addTextArea(text => text.setPlaceholder('e.g. bbc.com, nytimes.com').setValue(this.plugin.settings.currentsDomains).onChange((value) => {
+            .addTextArea(text => text.setPlaceholder('Bbc.com, nytimes.com').setValue(this.plugin.settings.currentsDomains).onChange((value) => {
                 void (async() => {
                     this.plugin.settings.currentsDomains = value.trim();
                     await this
@@ -555,7 +551,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Exclude domains')
             .setDesc('Exclude headlines from specific domains. If a domain appears in both the included and excluded domains, it will be excluded.')
-            .addTextArea(text => text.setPlaceholder('e.g. bbc.com, nytimes.com').setValue(this.plugin.settings.currentsExcludeDomains).onChange((value) => {
+            .addTextArea(text => text.setPlaceholder('Bbc.com, nytimes.com').setValue(this.plugin.settings.currentsExcludeDomains).onChange((value) => {
                 void (async() => {
                     this.plugin.settings.currentsExcludeDomains = value.trim();
                     await this
@@ -662,7 +658,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName("Show news footer")
-            .setDesc("Toggle the last refreshed info and refresh button for news. Beware of the daily limit of 20 requests with the free Currents API key.")
+            .setDesc("Toggle the last refreshed info and refresh button for news. Beware of the daily limit of 20 requests with the free API key.")
             .addToggle(toggle => {
                 toggle
                     .setValue(this.plugin.settings.showNewsFooter)
@@ -761,7 +757,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Stocks symbols')
             .setDesc(descStockSymbols)
-            .addTextArea(text => text.setPlaceholder('e.g. AAPL, MSFT, TSLA').setValue(this.plugin.settings.finnhubSymbols).onChange((value) => {
+            .addTextArea(text => text.setPlaceholder('Aapl, msft, tsla').setValue(this.plugin.settings.finnhubSymbols).onChange((value) => {
                 void (async() => {
                     this.plugin.settings.finnhubSymbols = value;
                     await this
@@ -780,7 +776,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Stocks positive change color')
             .setDesc(descHexColors)
-            .addText(text => text.setPlaceholder('e.g. #a68af6').setValue(this.plugin.settings.stockChangeColor).onChange((value) => {
+            .addText(text => text.setPlaceholder('#a68af6').setValue(this.plugin.settings.stockChangeColor).onChange((value) => {
                 void (async() => {
                     this.plugin.settings.stockChangeColor = value.trim();
                     await this
@@ -795,7 +791,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Stocks negative change color')
             .setDesc('Use any hex color. Leave blank to use the theme default.')
-            .addText(text => text.setPlaceholder('e.g. #fb464c').setValue(this.plugin.settings.stockChangeNegativeColor).onChange((value) => {
+            .addText(text => text.setPlaceholder('#fb464c').setValue(this.plugin.settings.stockChangeNegativeColor).onChange((value) => {
                 void (async() => {
                     this.plugin.settings.stockChangeNegativeColor = value.trim();
                     await this
@@ -810,7 +806,7 @@ export class GlobalTickerSettingTab extends PluginSettingTab {
         new Setting(containerEl)
             .setName('Stocks price color')
             .setDesc('Use any hex color. Leave blank to use the theme default.')
-            .addText(text => text.setPlaceholder('e.g. #666666').setValue(this.plugin.settings.stockPriceColor).onChange((value) => {
+            .addText(text => text.setPlaceholder('#666666').setValue(this.plugin.settings.stockPriceColor).onChange((value) => {
                 void (async() => {
                     this.plugin.settings.stockPriceColor = value.trim();
                     await this
